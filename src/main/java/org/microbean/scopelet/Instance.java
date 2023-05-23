@@ -1,18 +1,15 @@
 /* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
  *
- * Copyright © 2022 microBean™.
+ * Copyright © 2023 microBean™.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied.  See the License for the specific language governing
- * permissions and limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.microbean.scopelet;
 
@@ -29,11 +26,10 @@ import org.microbean.bean.Destruction;
 import org.microbean.bean.Id;
 
 /**
- * An {@link AutoCloseable} pairing of an instance that can be
- * destroyed with a {@link Destruction} holding its dependent objects.
+ * An {@link AutoCloseable} pairing of an instance that can be destroyed with a {@link Destruction} holding its
+ * dependent objects.
  *
- * @author <a href="https://about.me/lairdnelson"
- * target="_parent">Laird Nelson</a>
+ * @author <a href="https://about.me/lairdnelson" target="_parent">Laird Nelson</a>
  */
 public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
@@ -105,10 +101,8 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
   @Override
   public final int hashCode() {
-    // We don't want "closedness" to factor in here because it isn't
-    // part of equals().  But we want to use the results of get().
-    // Fortunately, that method is final.  So we can just use direct
-    // field access.
+    // We don't want "closedness" to factor in here because it isn't part of equals().  But we want to use the results
+    // of get().  Fortunately, that method is final.  So we can just use direct field access.
     return this.object.hashCode();
   }
 
@@ -117,10 +111,8 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
     if (other == this) {
       return true;
     } else if (other != null && this.getClass() == other.getClass()) {
-      // We don't want "closedness" to factor in here because it isn't
-      // part of hashCode().  But we want to use the results of get().
-      // Fortunately, that method is final.  So we can just use direct
-      // field access.
+      // We don't want "closedness" to factor in here because it isn't part of hashCode().  But we want to use the
+      // results of get().  Fortunately, that method is final.  So we can just use direct field access.
       return Objects.equals(this.object, ((Instance<?>)other).object);
     } else {
       return false;

@@ -9,13 +9,13 @@
   <parent>
     <groupId>org.microbean</groupId>
     <artifactId>microbean-pluginmanagement-pom</artifactId>
-    <version>18</version>
+    <version>21</version>
     <relativePath />
   </parent>
 
   <name>microBean™ Scopelet™</name>
   <description>microBean™ Scopelet™: Utility classes for implementing scopelets.</description>
-  <inceptionYear>2022</inceptionYear>
+  <inceptionYear>2023</inceptionYear>
   <url>https://microbean.github.io/microbean-scopelet</url>
 
   <scm>
@@ -41,15 +41,8 @@
 
       <dependency>
         <groupId>org.microbean</groupId>
-        <artifactId>microbean-development-annotations</artifactId>
-        <version>0.2.12</version>
-        <type>jar</type>
-      </dependency>
-      
-      <dependency>
-        <groupId>org.microbean</groupId>
         <artifactId>microbean-qualifier</artifactId>
-        <version>0.2.1</version>
+        <version>0.2.3</version>
         <type>jar</type>
       </dependency>
 
@@ -59,6 +52,7 @@
         <version>0.0.1-SNAPSHOT</version>
         <type>jar</type>
       </dependency>
+
 
     </dependencies>
   </dependencyManagement>
@@ -72,13 +66,6 @@
     <dependency>
       <groupId>org.microbean</groupId>
       <artifactId>microbean-bean</artifactId>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.microbean</groupId>
-      <artifactId>microbean-development-annotations</artifactId>
       <type>jar</type>
       <scope>compile</scope>
     </dependency>
@@ -126,8 +113,9 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <configuration>
             <compilerArgs>
-              <arg>-Xlint:all</arg>
+              <arg>--enable-preview</arg>
               <arg>-Xlint:-preview</arg>
+              <arg>-Xlint:all</arg>
               <arg>-Xpkginfo:always</arg>
             </compilerArgs>
           </configuration>
@@ -143,13 +131,11 @@
           </configuration>
         </plugin>
         <plugin>
-          <artifactId>maven-scm-publish-plugin</artifactId>
-          <version>3.1.0</version>
-        </plugin>
-        <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
-            <argLine>--add-opens=org.microbean.scopelet/org.microbean.scopelet=ALL-UNNAMED</argLine>
+            <!--
+                <argLine>-add-opens=org.microbean.scopelet/org.microbean.scopelet=ALL-UNNAMED</argLine>
+            -->
             <!-- See https://junit.org/junit5/docs/snapshot/user-guide/#running-tests-build-maven-config-params -->
             <!-- See https://github.com/apache/maven-surefire/blob/eb48f1b59ca5ccf6954ef33ecab03dbaf93214cd/surefire-providers/surefire-junit-platform/src/main/java/org/apache/maven/surefire/junitplatform/JUnitPlatformProvider.java#L242-L262 -->
             <properties>
@@ -174,13 +160,13 @@
     <jdkToolchainVendor>openjdk</jdkToolchainVendor>
 
     <!-- maven-compiler-plugin properties -->
-    <maven.compiler.release>17</maven.compiler.release>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.release>20</maven.compiler.release>
+    <maven.compiler.source>20</maven.compiler.source>
+    <maven.compiler.target>20</maven.compiler.target>
 
     <!-- maven-javadoc-plugin properties -->
     <detectJavaApiLink>false</detectJavaApiLink>
-    <links>https://docs.oracle.com/en/java/javase/17/docs/api,https://microbean.github.io/microbean-development-annotations/apidocs/</links>
+    <links>https://docs.oracle.com/en/java/javase/${maven.compiler.release}/docs/api/</links>
 
     <!-- maven-release-plugin properties; see http://maven.apache.org/maven-release/maven-release-plugin/ -->
     <goals>deploy,post-site,scm-publish:publish-scm</goals>
