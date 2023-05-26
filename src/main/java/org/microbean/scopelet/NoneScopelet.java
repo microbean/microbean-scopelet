@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import org.microbean.bean.Creation;
 import org.microbean.bean.Dependents;
+import org.microbean.bean.Destruction;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
 import org.microbean.bean.ReferenceTypeList;
@@ -71,8 +72,14 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
       return null;
     }
     final I returnValue = factory.create(c);
-    if (returnValue != null && c instanceof Dependents d && factory.destroys()) {
-      d.add(new Instance<>(returnValue, factory::destroy, c.destruction()));
+    // if (returnValue != null && c instanceof Dependents d && factory.destroys()) {
+    //   d.add(new Instance<>(returnValue, factory::destroy, c.destruction()));
+    // }
+    if (returnValue != null && factory.destroys()) {
+      final Destruction d = c.destruction();
+      if (d instanceof Dependents deps) {
+        deps.add(new Instance<>(returnValue, factory::destroy, d));
+      }
     }
     return returnValue;
   }

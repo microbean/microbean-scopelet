@@ -61,9 +61,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   @Override // Factory<S>
   @SuppressWarnings("unchecked")
   public S produce(final Creation<S> c) {
-    // TODO: technically, this should just return a new instance every time, and the governing scope should be the thing
-    // to cache it.  The topmost primordial scope should be the only one doing this sort of thing below. On the other
-    // hand this does override singleton()....
     if (ME.compareAndSet(this, null, this)) { // volatile write
       if (c != null) {
         // TODO: emit initialized event

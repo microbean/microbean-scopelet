@@ -79,7 +79,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
         // Perform creation.
         @SuppressWarnings("unchecked")
         final Instance<I> newInstance =
-          new Instance<>(factory == this ? (I)this : factory.create(creation), factory::destroy, creation.destruction());
+          new Instance<>(factory == this ? (I)this : factory.create(creation), factory::destroy, creation == null ? null : creation.destruction());
         // Put the created instance into our instance map.  There will not be a pre-existing instance.
         final Object previous = this.instances.put(beanId, newInstance);
         assert previous == null : "Unexpected prior instance: " + previous;
