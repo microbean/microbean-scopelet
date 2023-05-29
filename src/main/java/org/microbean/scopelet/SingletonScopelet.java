@@ -33,45 +33,35 @@ import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
 import static org.microbean.bean.Qualifiers.anyQualifier;
 
+import static org.microbean.lang.Lang.declaredType;
+import static org.microbean.lang.Lang.typeElement;
+
 import static org.microbean.scope.Scope.SINGLETON_ID;
 
 public final class SingletonScopelet extends MapBackedScopelet<SingletonScopelet> implements Constable {
 
-  private static final ClassDesc CD_SingletonScopelet = ClassDesc.of("org.microbean.scopelet.SingletonScopelet");
-  
-  public static final Id ID = new Id(types(),
-                                     List.of(SINGLETON_ID, anyQualifier()), // qualifiers
-                                     SINGLETON_ID); // the scope we belong to
-  
+  private static final ClassDesc CD_SingletonScopelet = ClassDesc.of(SingletonScopelet.class.getName());
+
+  public static final Id ID =
+    new Id(List.of(declaredType(SingletonScopelet.class),
+                   declaredType(null,
+                                typeElement(Scopelet.class),
+                                declaredType(SingletonScopelet.class))),
+           List.of(SINGLETON_ID, anyQualifier()), // qualifiers
+           SINGLETON_ID); // the scope we belong to
+
   public SingletonScopelet() {
     super(SINGLETON_ID); // the scope we implement
   }
 
-  @Override
+  @Override // Scopelet<SingletonScopelet>
   public final Id id() {
     return ID;
   }
-  
-  @Override // Factory<SingletonScopelet>
-  public final SingletonScopelet singleton() {
-    return this;
-  }
 
-  @Override // Factory<SingletonScopelet>
-  public final SingletonScopelet produce(final Creation<SingletonScopelet> ignored) {
-    return this;
-  }
-
-  @Override
+  @Override // Constable
   public final Optional<DynamicConstantDesc<SingletonScopelet>> describeConstable() {
-    return
-      Optional.of(DynamicConstantDesc.of(BSM_INVOKE,
-                                         MethodHandleDesc.ofConstructor(CD_SingletonScopelet)));
+    return Optional.of(DynamicConstantDesc.of(BSM_INVOKE, MethodHandleDesc.ofConstructor(CD_SingletonScopelet)));
   }
 
-  private static final ReferenceTypeList types() {
-    return new ReferenceTypeList(List.of(Lang.declaredType(SingletonScopelet.class),
-                                         Lang.declaredType(null, Lang.typeElement(Scopelet.class), Lang.declaredType(SingletonScopelet.class))));
-  }
-  
 }

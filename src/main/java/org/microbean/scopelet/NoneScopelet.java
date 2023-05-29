@@ -15,7 +15,6 @@ package org.microbean.scopelet;
 
 import java.lang.constant.ClassDesc;
 import java.lang.constant.Constable;
-import java.lang.constant.ConstantDesc;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodHandleDesc;
 
@@ -27,26 +26,29 @@ import org.microbean.bean.Dependents;
 import org.microbean.bean.Destruction;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
-import org.microbean.bean.ReferenceTypeList;
-
-import org.microbean.lang.Lang;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
 import static org.microbean.bean.Qualifiers.anyQualifier;
+
+import static org.microbean.lang.Lang.declaredType;
+import static org.microbean.lang.Lang.typeElement;
 
 import static org.microbean.scope.Scope.NONE_ID;
 import static org.microbean.scope.Scope.SINGLETON_ID;
 
 public final class NoneScopelet extends Scopelet<NoneScopelet> implements Constable {
 
-  private static final ClassDesc CD_NoneScopelet = ClassDesc.of("org.microbean.scopelet.NoneScopelet");
-  
+  private static final ClassDesc CD_NoneScopelet = ClassDesc.of(NoneScopelet.class.getName());
+
   public static final Id ID =
-    new Id(types(),
+    new Id(List.of(declaredType(NoneScopelet.class),
+                   declaredType(null,
+                                typeElement(Scopelet.class),
+                                declaredType(NoneScopelet.class))),
            List.of(NONE_ID, anyQualifier()), // qualifiers
            SINGLETON_ID); // the scope we belong to
-  
+
   public NoneScopelet() {
     super(NONE_ID); // the scope we implement
   }
@@ -63,7 +65,7 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
     }
     return null;
   }
-  
+
   @Override // Scopelet<NoneScopelet>
   public final <I> I supply(final Object beanId, final Factory<I> factory, final Creation<I> c) {
     if (!this.active()) {
@@ -72,10 +74,7 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
       return null;
     }
     final I returnValue = factory.create(c);
-    // if (returnValue != null && c instanceof Dependents d && factory.destroys()) {
-    //   d.add(new Instance<>(returnValue, factory::destroy, c.destruction()));
-    // }
-    if (returnValue != null && factory.destroys()) {
+    if (returnValue != null && c != null && factory.destroys()) {
       final Destruction d = c.destruction();
       if (d instanceof Dependents deps) {
         deps.add(new Instance<>(returnValue, factory::destroy, d));
@@ -83,27 +82,17 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
     }
     return returnValue;
   }
-  
-  @Override // Factory<NoneScopelet>
-  public final NoneScopelet singleton() {
-    return this;
+
+  @Override // Scopelet<NoneScopelet>
+  public final void remove(final Object id) {
+    if (!this.active()) {
+      throw new InactiveScopeletException();
+    }
   }
 
-  @Override // Factory<NoneScopelet>
-  public final NoneScopelet produce(final Creation<NoneScopelet> ignored) {
-    return this;
-  }
-
-  @Override
+  @Override // Constable
   public final Optional<DynamicConstantDesc<NoneScopelet>> describeConstable() {
-    return
-      Optional.of(DynamicConstantDesc.of(BSM_INVOKE,
-                                         MethodHandleDesc.ofConstructor(CD_NoneScopelet)));
+    return Optional.of(DynamicConstantDesc.of(BSM_INVOKE, MethodHandleDesc.ofConstructor(CD_NoneScopelet)));
   }
 
-  private static final ReferenceTypeList types() {
-    return new ReferenceTypeList(List.of(Lang.type(NoneScopelet.class),
-                                         Lang.declaredType(null, Lang.typeElement(Scopelet.class), Lang.declaredType(NoneScopelet.class))));
-  }
-  
 }

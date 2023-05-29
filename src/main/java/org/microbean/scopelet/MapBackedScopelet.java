@@ -31,7 +31,7 @@ import org.microbean.bean.Id;
 
 import org.microbean.qualifier.NamedAttributeMap;
 
-public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends Scopelet<M> implements AutoCloseable {
+public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends Scopelet<M> {
 
   private final ConcurrentMap<Object, Instance<?>> instances;
 
@@ -43,7 +43,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     this.instances = new ConcurrentHashMap<>();
   }
 
-  @Override
+  @Override // Scopelet<M>
   public <I> I supply(final Object beanId, final Factory<I> factory, final Creation<I> c) {
     if (!this.active()) {
       throw new InactiveScopeletException();
@@ -52,10 +52,10 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     return s == null ? null : s.get();
   }
 
-  private final <I> Supplier<I> supplier(final Object beanId, final Factory<I> factory, final Creation<I> creation) {
+  private final <I> Supplier<I> supplier(final Object id, final Factory<I> factory, final Creation<I> creation) {
     // (Don't use computeIfAbsent().)
     @SuppressWarnings("unchecked")
-    final Supplier<I> supplier = (Supplier<I>)this.instances.get(beanId);
+    final Supplier<I> supplier = (Supplier<I>)this.instances.get(id);
     if (supplier != null || factory == null) {
       // If we had a Supplier, return it, and if we didn't, and we have no means of creating a new one, return null.
       return supplier;
@@ -64,30 +64,39 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     // We can't use computeIfAbsent so things get a little tricky here.
     //
     // There wasn't anything in the instances map.  So we want to effectively synchronize on instance creation.  We're
-    // going to do this by maintaining Locks in a map, one per beanId in question.  Please pay close attention to the
+    // going to do this by maintaining Locks in a map, one per id in question.  Please pay close attention to the
     // locking semantics below.
     //
     // Create a new lock, but don't lock() it just yet.
     final ReentrantLock newLock = new ReentrantLock();
-    final ReentrantLock creationLock = this.creationLock(beanId, newLock);
+
+    final ReentrantLock creationLock = this.creationLock(id, newLock);
     assert creationLock.isLocked() : "!creationLock.isLocked(): " + creationLock;
 
     if (creationLock == newLock) {
+
       try {
+
         // We successfully put newLock into the map.
-        assert this.creationLocks.get(beanId) == newLock;
+        assert this.creationLocks.get(id) == newLock;
+
         // Perform creation.
         @SuppressWarnings("unchecked")
         final Instance<I> newInstance =
-          new Instance<>(factory == this ? (I)this : factory.create(creation), factory::destroy, creation == null ? null : creation.destruction());
+          new Instance<>(factory == this ? (I)this : factory.create(creation),
+                         factory::destroy,
+                         creation == null ? null : creation.destruction());
+
         // Put the created instance into our instance map.  There will not be a pre-existing instance.
-        final Object previous = this.instances.put(beanId, newInstance);
+        final Object previous = this.instances.put(id, newInstance);
         assert previous == null : "Unexpected prior instance: " + previous;
+
         // Return the newly created instance.
-        return (Supplier<I>)newInstance;
+        return newInstance;
+
       } finally {
         try {
-          final Object removedLock = this.creationLocks.remove(beanId);
+          final Object removedLock = this.creationLocks.remove(id);
           assert removedLock == newLock : "Unexpected removedLock: " + removedLock + "; newLock: " + newLock;
         } finally {
           newLock.unlock();
@@ -117,17 +126,30 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     // removal: if it returns a non-null Object, we're in a cycle, otherwise everything is cool.  Moreover, it is
     // guaranteed that if the removal returns a non-null Object, that will be the creationLock this very thread
     // inserted earlier.  No matter what, we must make sure that the creationLocks map no longer contains a lock for
-    // the beanId in question.
-    final Object removedLock = this.creationLocks.remove(beanId);
+    // the id in question.
+    final Object removedLock = this.creationLocks.remove(id);
     if (removedLock != null) {
       assert removedLock == creationLock : "Unexpected removedLock: " + removedLock + "; creationLock: " + creationLock;
       throw new CreationCycleDetectedException();
     }
     // The other thread finished creating; let's try again to pick up its results.
-    return this.supplier(beanId, factory, creation); // RECURSIVE
+    return this.supplier(id, factory, creation); // RECURSIVE
   }
 
-  @Override
+  @Override // Scopelet<M>
+  public void remove(final Object id) {
+    if (!this.active()) {
+      throw new InactiveScopeletException();
+    }
+    if (id != null) {
+      final Instance<?> instance = this.instances.remove(id);
+      if (instance != null) {
+        instance.close();
+      }
+    }
+  }
+
+  @Override // Scopelet<M>
   public void close() {
     if (this.closed()) {
       return;
@@ -135,22 +157,28 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     super.close();
     final Iterator<Entry<Object, ReentrantLock>> i = this.creationLocks.entrySet().iterator();
     while (i.hasNext()) {
-      i.next().getValue().unlock();
-      i.remove();
+      try {
+        i.next().getValue().unlock();
+      } finally {
+        i.remove();
+      }
     }
     final Iterator<Entry<Object, Instance<?>>> i2 = this.instances.entrySet().iterator();
     while (i2.hasNext()) {
-      i2.next().getValue().close();
-      i2.remove();
+      try {
+        i2.next().getValue().close();
+      } finally {
+        i2.remove();
+      }
     }
   }
 
-  private final ReentrantLock creationLock(final Object beanId, final ReentrantLock candidate) {
+  private final ReentrantLock creationLock(final Object id, final ReentrantLock candidate) {
     if (candidate.isLocked()) {
       throw new IllegalArgumentException("candidate.isLocked(): " + candidate);
     }
     try {
-      return this.creationLocks.computeIfAbsent(beanId, x -> lock(candidate));
+      return this.creationLocks.computeIfAbsent(id, x -> lock(candidate));
     } catch (final RuntimeException | Error justBeingCareful) {
       // ReentrantLock#lock() is not documented to throw anything, but if it does, make sure we unlock it.
       try {

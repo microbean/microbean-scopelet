@@ -74,7 +74,18 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     return this.me; // volatile read
   }
 
-  @Override
+  @Override // Factory<S>
+  public final boolean destroys() {
+    return true;
+  }
+
+  @Override // Factory<S>
+  public final void destroy(final S self) {
+    self.close();
+    this.me = null; // volatile write
+  }
+
+  @Override // Object
   public int hashCode() {
     int hashCode = 17;
     hashCode = 31 * hashCode + this.id().hashCode();
@@ -82,7 +93,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     return hashCode;
   }
 
-  @Override
+  @Override // Object
   public boolean equals(final Object other) {
     if (other == this) {
       return true;
@@ -96,12 +107,12 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     }
   }
 
-  @Override
+  @Override // ScopeMember
   public final NamedAttributeMap<?> governingScopeId() {
     return this.id().governingScopeId();
   }
 
-  @Override
+  @Override // ScopeMember
   public final boolean governedBy(final NamedAttributeMap<?> scopeId) {
     return this.id().governedBy(scopeId);
   }
@@ -111,7 +122,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * Repository-like concerns.
    */
 
-  
+
   public final NamedAttributeMap<?> scopeId() {
     return this.scopeId;
   }
@@ -120,29 +131,28 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     return !this.closed(); // volatile read
   }
 
-  public boolean containsId(final Object beanId) {
+  public boolean containsId(final Object id) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }
-    return this.get(beanId) != null;
+    return this.get(id) != null;
   }
 
-  public <I> I get(final Object beanId) {
+  // id is nullable.
+  public <I> I get(final Object id) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }
-    return this.supply(beanId, null, null);
+    return this.supply(id, null, null);
   }
 
-  public abstract <I> I supply(final Object beanId, final Factory<I> factory, final Creation<I> c);
+  // All parameters are nullable.
+  public abstract <I> I supply(final Object id, final Factory<I> factory, final Creation<I> c);
 
-  public void remove(final Object beanId) {
-    if (!this.active()) {
-      throw new InactiveScopeletException();
-    }
-  }
+  // id is nullable.
+  public abstract void remove(final Object id);
 
-  @Override
+  @Override // AutoCloseable
   public void close() {
     if (!this.closed()) {
       this.closed = true;
