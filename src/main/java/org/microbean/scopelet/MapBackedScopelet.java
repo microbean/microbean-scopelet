@@ -137,7 +137,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
   }
 
   @Override // Scopelet<M>
-  public void remove(final Object id) {
+  public boolean remove(final Object id) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }
@@ -145,8 +145,10 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
       final Instance<?> instance = this.instances.remove(id);
       if (instance != null) {
         instance.close();
+        return true;
       }
     }
+    return false;
   }
 
   @Override // Scopelet<M>

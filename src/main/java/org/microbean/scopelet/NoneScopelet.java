@@ -84,10 +84,11 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
   }
 
   @Override // Scopelet<NoneScopelet>
-  public final void remove(final Object id) {
+  public final boolean remove(final Object id) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }
+    return false;
   }
 
   @Override // Constable

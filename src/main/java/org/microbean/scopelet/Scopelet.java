@@ -150,7 +150,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   public abstract <I> I supply(final Object id, final Factory<I> factory, final Creation<I> c);
 
   // id is nullable.
-  public abstract void remove(final Object id);
+  public abstract boolean remove(final Object id);
 
   @Override // AutoCloseable
   public void close() {
