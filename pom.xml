@@ -147,6 +147,7 @@
             <systemPropertyVariables>
               <project.build.directory>${project.build.directory}</project.build.directory>
               <project.build.testOutputDirectory>${project.build.testOutputDirectory}</project.build.testOutputDirectory>
+              <useDependentReferences>${useDependentReferences}</useDependentReferences>
             </systemPropertyVariables>
           </configuration>
         </plugin>
@@ -176,6 +177,8 @@
     <scmpublish.content>${project.reporting.outputDirectory}</scmpublish.content>
     <scmpublish.pubScmUrl>${project.scm.developerConnection}</scmpublish.pubScmUrl>
     <scmpublish.scm.branch>gh-pages</scmpublish.scm.branch>
+
+    <useDependentReferences>false</useDependentReferences>
 
   </properties>
 

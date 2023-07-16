@@ -11,7 +11,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.microbean.scopelet;
+package org.microbean.scopelet2;
 
 import java.lang.constant.ClassDesc;
 import java.lang.constant.Constable;
@@ -26,11 +26,12 @@ import java.util.Optional;
 
 import java.util.function.Consumer;
 
-import org.microbean.bean.Creation;
-import org.microbean.bean.Dependents;
-import org.microbean.bean.Destruction;
-import org.microbean.bean.Factory;
-import org.microbean.bean.Id;
+import org.microbean.bean2.AutoCloseableRegistry;
+import org.microbean.bean2.Creation;
+import org.microbean.bean2.DependentReference;
+import org.microbean.bean2.Factory;
+import org.microbean.bean2.Id;
+import org.microbean.bean2.References;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
@@ -54,6 +55,31 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
            List.of(NONE_ID, anyQualifier()), // qualifiers
            SINGLETON_ID); // the scope we belong to
 
+  private static final ReferenceQueue<Object> REFERENCE_QUEUE = new ReferenceQueue<>();
+
+  private static final boolean useDependentReferences =
+    Boolean.parseBoolean(System.getProperty("useDependentReferences", "false"));
+
+  static {
+    if (useDependentReferences) {
+      final Thread t = new Thread(() -> {
+          while (true) {
+            DependentReference<?> dr = null;
+            try {
+              dr = (DependentReference<?>)REFERENCE_QUEUE.remove();
+            } catch (final InterruptedException e) {
+              Thread.currentThread().interrupt();
+              break;
+            }
+            // Thread.ofVirtual().name("destroyer", 0L).start(dr::destroy);
+            dr.destroy();
+          }
+      }, "Oppenheimer"); // ...Destroyer of Worlds
+      t.setDaemon(true);
+      t.start();
+    }
+  }
+
   public NoneScopelet() {
     super(NONE_ID); // the scope we implement
   }
@@ -72,19 +98,21 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
   }
 
   @Override // Scopelet<NoneScopelet>
-  public final <I> I supply(final Object beanId, final Factory<I> factory, final Creation<I> c) {
+  public final <I> I supply(final Object beanId,
+                            final Factory<I> factory,
+                            final Creation<I> c,
+                            final References<?> r) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     } else if (factory == null) {
       return null;
     }
-    final I returnValue = factory.create(c);
-    if (returnValue != null && c != null && factory.destroys()) {
-      // EXPERIMENTAL
-      // new DependentInstance<>(returnValue, i -> factory.destroy(factory.destroying(i, c.destruction().references())));
-      final Destruction d = c.destruction();
-      if (d instanceof Dependents deps) {
-        deps.add(new Instance<>(returnValue, factory::destroy, d));
+    final I returnValue = factory.create(c, r);
+    if (returnValue != null && factory.destroys()) {
+      if (useDependentReferences) {
+        new DependentReference<>(returnValue, REFERENCE_QUEUE, referent -> factory.destroy(referent, c, r));
+      } else if (c instanceof AutoCloseableRegistry acr) {
+        acr.register(new Instance<>(returnValue, factory::destroy, c, r));
       }
     }
     return returnValue;
@@ -103,51 +131,4 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
     return Optional.of(DynamicConstantDesc.of(BSM_INVOKE, MethodHandleDesc.ofConstructor(CD_NoneScopelet)));
   }
 
-  // EXPERIMENTAL:
-
-  public static final class DependentInstance<I> extends WeakReference<I> implements AutoCloseable {
-
-    private static final ReferenceQueue<Object> REFERENCE_QUEUE = new ReferenceQueue<>();
-
-    static {
-      final Thread t = new Thread(() -> {
-          while (true) {
-            DependentInstance<?> di = null;
-            try {
-              di = (DependentInstance<?>)REFERENCE_QUEUE.remove();
-            } catch (final InterruptedException e) {
-              Thread.currentThread().interrupt();
-              break;
-            }
-            // Thread.ofVirtual().name("destroyer", 0L).start(di::destroy);
-            di.destroy();
-          }
-      }, "Destroyer of Worlds");
-      t.setDaemon(true);
-      t.start();      
-    }
-    
-    private final I instance;
-
-    private final Consumer<? super I> destructor;
-
-    public DependentInstance(final I instance, final Consumer<? super I> destructor) {
-      super(instance, REFERENCE_QUEUE);
-      this.instance = instance;
-      this.destructor = destructor;
-    }
-
-    @Override
-    public final void close() {
-      this.enqueue(); // idempotent
-    }
-
-    private final void destroy() {
-      if (this.instance != null && this.destructor != null) {
-        this.destructor.accept(this.instance);
-      }
-    }
-    
-  }
-  
 }
