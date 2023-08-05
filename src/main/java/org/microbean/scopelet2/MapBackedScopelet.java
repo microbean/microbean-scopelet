@@ -46,10 +46,10 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
   }
 
   @Override // Scopelet<M>
-  public <I> I supply(final Object beanId,
-                      final Factory<I> factory,
-                      final Creation<I> c,
-                      final References<?> r) {
+  public <I> I instance(final Object beanId,
+                        final Factory<I> factory,
+                        final Creation<I> c,
+                        final References<?> r) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }

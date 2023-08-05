@@ -98,10 +98,10 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
   }
 
   @Override // Scopelet<NoneScopelet>
-  public final <I> I supply(final Object beanId,
-                            final Factory<I> factory,
-                            final Creation<I> c,
-                            final References<?> r) {
+  public final <I> I instance(final Object beanId,
+                              final Factory<I> factory,
+                              final Creation<I> c,
+                              final References<?> r) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     } else if (factory == null) {

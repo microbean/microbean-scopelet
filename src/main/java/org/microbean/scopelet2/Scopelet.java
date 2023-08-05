@@ -56,14 +56,13 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   public abstract Id id();
 
-  @Deprecated
   public final Bean<S> bean() {
     return new Bean<>(this.id(), this);
   }
 
   @Override // Factory<S>
   @SuppressWarnings("unchecked")
-  public S create(final Creation<S> c, final References<?> references) {
+  public final S create(final Creation<S> c, final References<?> references) {
     if (ME.compareAndSet(this, null, this)) { // volatile write
       if (references != null) {
         // TODO: emit initialized event
@@ -73,12 +72,12 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   }
 
   @Override // Factory<S>
-  public S singleton() {
+  public final S singleton() {
     return this.me; // volatile read
   }
 
   @Override // Factory<S>
-  public final boolean destroys() {
+  public boolean destroys() {
     return true;
   }
 
@@ -140,14 +139,14 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     if (!this.active()) {
       throw new InactiveScopeletException();
     }
-    return this.supply(id, null, null, null);
+    return this.instance(id, null, null, null);
   }
 
   // All parameters are nullable.
-  public abstract <I> I supply(final Object id,
-                               final Factory<I> factory,
-                               final Creation<I> c,
-                               final References<?> r);
+  public abstract <I> I instance(final Object id,
+                                 final Factory<I> factory,
+                                 final Creation<I> c,
+                                 final References<?> r);
 
   // id is nullable.
   public abstract boolean remove(final Object id);
