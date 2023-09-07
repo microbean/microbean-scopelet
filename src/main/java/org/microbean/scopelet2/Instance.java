@@ -22,12 +22,12 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import org.microbean.bean2.Id;
-import org.microbean.bean2.References;
+import org.microbean.bean.Id;
+import org.microbean.bean.References;
 
 /**
- * An {@link AutoCloseable} pairing of an instance that can be destroyed with a {@link Destruction} holding its
- * dependent objects.
+ * An {@link AutoCloseable} pairing of an instance that can be destroyed with a {@link Destructor} that can destroy it
+ * and an {@link AutoCloseable} that can release its dependent objects when needed.
  *
  * @author <a href="https://about.me/lairdnelson" target="_parent">Laird Nelson</a>
  */
@@ -82,7 +82,6 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
         }
       } catch (final RuntimeException e) {
         t = e;
-        throw e;
       } finally {
         if (this.releaser != null) {
           try {

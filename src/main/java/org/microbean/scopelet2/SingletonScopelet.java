@@ -21,11 +21,11 @@ import java.lang.constant.MethodHandleDesc;
 import java.util.List;
 import java.util.Optional;
 
-import org.microbean.bean2.Id;
+import org.microbean.bean.Id;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
-import static org.microbean.bean2.Qualifiers.anyQualifier;
+import static org.microbean.bean.Qualifiers.anyQualifier;
 
 import static org.microbean.lang.Lang.declaredType;
 import static org.microbean.lang.Lang.typeElement;

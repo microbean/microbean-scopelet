@@ -19,12 +19,12 @@ import java.lang.invoke.VarHandle;
 
 import java.util.Objects;
 
-import org.microbean.bean2.AutoCloseableRegistry;
-import org.microbean.bean2.Bean;
-import org.microbean.bean2.Creation;
-import org.microbean.bean2.Id;
-import org.microbean.bean2.Factory;
-import org.microbean.bean2.References;
+import org.microbean.bean.AutoCloseableRegistry;
+import org.microbean.bean.Bean;
+import org.microbean.bean.Creation;
+import org.microbean.bean.Id;
+import org.microbean.bean.Factory;
+import org.microbean.bean.References;
 
 import org.microbean.qualifier.NamedAttributeMap;
 

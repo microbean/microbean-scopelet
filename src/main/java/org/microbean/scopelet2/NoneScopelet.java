@@ -18,20 +18,17 @@ import java.lang.constant.Constable;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodHandleDesc;
 
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
-
 import java.util.List;
 import java.util.Optional;
 
 import java.util.function.Consumer;
 
-import org.microbean.bean2.AutoCloseableRegistry;
-import org.microbean.bean2.Creation;
-import org.microbean.bean2.DependentReference;
-import org.microbean.bean2.Factory;
-import org.microbean.bean2.Id;
-import org.microbean.bean2.References;
+import org.microbean.bean.AutoCloseableRegistry;
+import org.microbean.bean.Creation;
+import org.microbean.bean.DependentReference;
+import org.microbean.bean.Factory;
+import org.microbean.bean.Id;
+import org.microbean.bean.References;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
@@ -55,30 +52,8 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
            List.of(NONE_ID, anyQualifier()), // qualifiers
            SINGLETON_ID); // the scope we belong to
 
-  private static final ReferenceQueue<Object> REFERENCE_QUEUE = new ReferenceQueue<>();
-
   private static final boolean useDependentReferences =
     Boolean.parseBoolean(System.getProperty("useDependentReferences", "false"));
-
-  static {
-    if (useDependentReferences) {
-      final Thread t = new Thread(() -> {
-          while (true) {
-            DependentReference<?> dr = null;
-            try {
-              dr = (DependentReference<?>)REFERENCE_QUEUE.remove();
-            } catch (final InterruptedException e) {
-              Thread.currentThread().interrupt();
-              break;
-            }
-            // Thread.ofVirtual().name("destroyer", 0L).start(dr::destroy);
-            dr.destroy();
-          }
-      }, "Oppenheimer"); // ...Destroyer of Worlds
-      t.setDaemon(true);
-      t.start();
-    }
-  }
 
   public NoneScopelet() {
     super(NONE_ID); // the scope we implement
@@ -108,9 +83,9 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
       return null;
     }
     final I returnValue = factory.create(c, r);
-    if (returnValue != null && factory.destroys()) {
+    if (factory.destroys()) {
       if (useDependentReferences) {
-        new DependentReference<>(returnValue, REFERENCE_QUEUE, referent -> factory.destroy(referent, c, r));
+        new DependentReference<>(returnValue, referent -> factory.destroy(referent, c, r));
       } else if (c instanceof AutoCloseableRegistry acr) {
         acr.register(new Instance<>(returnValue, factory::destroy, c, r));
       }

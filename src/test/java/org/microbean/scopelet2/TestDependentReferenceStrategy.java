@@ -11,23 +11,24 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.microbean.scopelet;
+package org.microbean.scopelet2;
 
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
+import org.microbean.bean.DependentReference;
+
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.microbean.scopelet.NoneScopelet.DependentInstance;
+final class TestDependentReferenceStrategy {
 
-final class TestDependentInstanceStrategy {
-
-  private TestDependentInstanceStrategy() {
+  private TestDependentReferenceStrategy() {
     super();
   }
 
@@ -35,9 +36,9 @@ final class TestDependentInstanceStrategy {
   final void test() {
 
     final Consumer<Object> c = i -> System.out.println("destroying: " + i);
-
+    
     Object i = Integer.valueOf(1);
-    WeakReference<Object> r = new DependentInstance<>(i, c);
+    WeakReference<Object> r = new DependentReference<Object>(i, c);
     assertTrue(r.refersTo(i));
     i = null;
     // Simulate garbage collection
@@ -45,7 +46,7 @@ final class TestDependentInstanceStrategy {
     assertNull(r.get());
 
     i = Integer.valueOf(2);
-    r = new DependentInstance<>(i, c);
+    r = new DependentReference<>(i, c);
     assertTrue(r.refersTo(i));
     // 
     

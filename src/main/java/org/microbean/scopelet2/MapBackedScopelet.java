@@ -25,11 +25,11 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import java.util.function.Supplier;
 
-import org.microbean.bean2.AutoCloseableRegistry;
-import org.microbean.bean2.Creation;
-import org.microbean.bean2.Factory;
-import org.microbean.bean2.Id;
-import org.microbean.bean2.References;
+import org.microbean.bean.AutoCloseableRegistry;
+import org.microbean.bean.Creation;
+import org.microbean.bean.Factory;
+import org.microbean.bean.Id;
+import org.microbean.bean.References;
 
 import org.microbean.qualifier.NamedAttributeMap;
 
@@ -74,7 +74,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     // There wasn't anything in the instances map.  So we want to effectively synchronize on instance creation.  We're
     // going to do this by maintaining Locks in a map, one per id in question.  Please pay close attention to the
     // locking semantics below.
-    //
+
     // Create a new lock, but don't lock() it just yet.
     final ReentrantLock newLock = new ReentrantLock();
 
@@ -201,7 +201,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     }
   }
 
-  private static final ReentrantLock lock(final ReentrantLock candidate) {
+  private static final <T extends Lock> T lock(final T candidate) {
     candidate.lock();
     return candidate;
   }

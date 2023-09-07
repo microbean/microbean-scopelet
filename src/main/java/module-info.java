@@ -27,7 +27,6 @@ module org.microbean.scopelet {
   requires org.microbean.lang;
   requires org.microbean.scope;
 
-  exports org.microbean.scopelet;
   exports org.microbean.scopelet2;
 
 }
