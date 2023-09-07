@@ -11,26 +11,14 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.microbean.scopelet2;
+package org.microbean.scopelet;
 
-public class ScopeletException extends RuntimeException {
+public class CreationCycleDetectedException extends ScopeletException {
 
   private static final long serialVersionUID = 1L;
 
-  public ScopeletException() {
+  public CreationCycleDetectedException() {
     super();
-  }
-
-  public ScopeletException(final String message) {
-    super(message);
-  }
-
-  public ScopeletException(final Throwable cause) {
-    super(cause);
-  }
-
-  public ScopeletException(final String message, final Throwable cause) {
-    super(message, cause);
   }
 
 }
