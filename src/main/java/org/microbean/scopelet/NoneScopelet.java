@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 
 import org.microbean.bean.AutoCloseableRegistry;
 import org.microbean.bean.Creation;
-import org.microbean.bean.DependentReference;
+import org.microbean.bean.DisposableReference;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
 import org.microbean.bean.References;
@@ -85,7 +85,7 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
     final I returnValue = factory.create(c, r);
     if (factory.destroys()) {
       if (useDependentReferences) {
-        new DependentReference<>(returnValue, referent -> factory.destroy(referent, c, r));
+        new DisposableReference<>(returnValue, referent -> factory.destroy(referent, c, r));
       } else if (c instanceof AutoCloseableRegistry acr) {
         acr.register(new Instance<>(returnValue, factory::destroy, c, r));
       }

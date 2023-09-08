@@ -20,15 +20,15 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
-import org.microbean.bean.DependentReference;
+import org.microbean.bean.DisposableReference;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-final class TestDependentReferenceStrategy {
+final class TestDisposableReferenceStrategy {
 
-  private TestDependentReferenceStrategy() {
+  private TestDisposableReferenceStrategy() {
     super();
   }
 
@@ -36,9 +36,9 @@ final class TestDependentReferenceStrategy {
   final void test() {
 
     final Consumer<Object> c = i -> System.out.println("destroying: " + i);
-    
+
     Object i = Integer.valueOf(1);
-    WeakReference<Object> r = new DependentReference<Object>(i, c);
+    WeakReference<Object> r = new DisposableReference<Object>(i, c);
     assertTrue(r.refersTo(i));
     i = null;
     // Simulate garbage collection
@@ -46,10 +46,9 @@ final class TestDependentReferenceStrategy {
     assertNull(r.get());
 
     i = Integer.valueOf(2);
-    r = new DependentReference<>(i, c);
+    r = new DisposableReference<>(i, c);
     assertTrue(r.refersTo(i));
-    // 
-    
+
   }
-  
+
 }
