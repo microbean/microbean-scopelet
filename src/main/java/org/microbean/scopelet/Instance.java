@@ -23,7 +23,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.microbean.bean.Id;
-import org.microbean.bean.References;
+import org.microbean.bean.ReferenceSelector;
 
 /**
  * An {@link AutoCloseable} pairing of an instance that can be destroyed with a {@link Destructor} that can destroy it
@@ -49,19 +49,19 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
   private final Destructor<I> destroyer;
 
-  private final References<?> references;
+  private final ReferenceSelector referenceSelector;
 
   private volatile boolean closed;
 
   public Instance(final I object,
                   final Destructor<I> destroyer,
                   final AutoCloseable releaser,
-                  final References<?> references) {
+                  final ReferenceSelector referenceSelector) {
     super();
     this.object = object;
     this.releaser = releaser;
     this.destroyer = destroyer;
-    this.references = references;
+    this.referenceSelector = referenceSelector;
   }
 
   @Override
@@ -78,7 +78,7 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
       RuntimeException t = null;
       try {
         if (this.destroyer != null) {
-          this.destroyer.destroy(this.object, this.releaser, this.references);
+          this.destroyer.destroy(this.object, this.releaser, this.referenceSelector);
         }
       } catch (final RuntimeException e) {
         t = e;
@@ -139,7 +139,7 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
   public static interface Destructor<I> {
 
-    public void destroy(final I i, final AutoCloseable acr, final References<?> r);
+    public void destroy(final I i, final AutoCloseable acr, final ReferenceSelector r);
     
   }
   

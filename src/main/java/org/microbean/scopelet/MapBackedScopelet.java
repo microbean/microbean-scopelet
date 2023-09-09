@@ -29,7 +29,7 @@ import org.microbean.bean.AutoCloseableRegistry;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
-import org.microbean.bean.References;
+import org.microbean.bean.ReferenceSelector;
 
 import org.microbean.qualifier.NamedAttributeMap;
 
@@ -49,7 +49,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
   public <I> I instance(final Object beanId,
                         final Factory<I> factory,
                         final Creation<I> c,
-                        final References<?> r) {
+                        final ReferenceSelector r) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }
@@ -60,7 +60,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
   private final <I> Supplier<I> supplier(final Object id,
                                          final Factory<I> factory,
                                          final Creation<I> creation,
-                                         final References<?> r) {
+                                         final ReferenceSelector r) {
     // (Don't use computeIfAbsent().)
     @SuppressWarnings("unchecked")
     final Supplier<I> supplier = (Supplier<I>)this.instances.get(id);

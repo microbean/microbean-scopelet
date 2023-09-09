@@ -28,7 +28,7 @@ import org.microbean.bean.Creation;
 import org.microbean.bean.DisposableReference;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
-import org.microbean.bean.References;
+import org.microbean.bean.ReferenceSelector;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
@@ -52,8 +52,8 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
            List.of(NONE_ID, anyQualifier()), // qualifiers
            SINGLETON_ID); // the scope we belong to
 
-  private static final boolean useDependentReferences =
-    Boolean.parseBoolean(System.getProperty("useDependentReferences", "false"));
+  private static final boolean useDisposableReferences =
+    Boolean.parseBoolean(System.getProperty("useDisposableReferences", "false"));
 
   public NoneScopelet() {
     super(NONE_ID); // the scope we implement
@@ -76,7 +76,7 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
   public final <I> I instance(final Object beanId,
                               final Factory<I> factory,
                               final Creation<I> c,
-                              final References<?> r) {
+                              final ReferenceSelector r) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     } else if (factory == null) {
@@ -84,7 +84,7 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
     }
     final I returnValue = factory.create(c, r);
     if (factory.destroys()) {
-      if (useDependentReferences) {
+      if (useDisposableReferences) {
         new DisposableReference<>(returnValue, referent -> factory.destroy(referent, c, r));
       } else if (c instanceof AutoCloseableRegistry acr) {
         acr.register(new Instance<>(returnValue, factory::destroy, c, r));

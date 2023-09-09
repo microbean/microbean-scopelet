@@ -24,7 +24,7 @@ import org.microbean.bean.Bean;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Id;
 import org.microbean.bean.Factory;
-import org.microbean.bean.References;
+import org.microbean.bean.ReferenceSelector;
 
 import org.microbean.qualifier.NamedAttributeMap;
 
@@ -62,9 +62,9 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   @Override // Factory<S>
   @SuppressWarnings("unchecked")
-  public final S create(final Creation<S> c, final References<?> references) {
+  public final S create(final Creation<S> c, final ReferenceSelector referenceSelector) {
     if (ME.compareAndSet(this, null, this)) { // volatile write
-      if (references != null) {
+      if (referenceSelector != null) {
         // TODO: emit initialized event
       }
     }
@@ -146,7 +146,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   public abstract <I> I instance(final Object id,
                                  final Factory<I> factory,
                                  final Creation<I> c,
-                                 final References<?> r);
+                                 final ReferenceSelector r);
 
   // id is nullable.
   public abstract boolean remove(final Object id);
