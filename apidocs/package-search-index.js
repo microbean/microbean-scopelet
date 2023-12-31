@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"m":"org.microbean.scopelet","l":"org.microbean.scopelet"}];updateSearchResults();
