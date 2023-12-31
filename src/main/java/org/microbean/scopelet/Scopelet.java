@@ -19,7 +19,6 @@ import java.lang.invoke.VarHandle;
 
 import java.util.Objects;
 
-import org.microbean.bean.AutoCloseableRegistry;
 import org.microbean.bean.Bean;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Id;

@@ -21,8 +21,6 @@ import java.lang.constant.MethodHandleDesc;
 import java.util.List;
 import java.util.Optional;
 
-import java.util.function.Consumer;
-
 import org.microbean.bean.AutoCloseableRegistry;
 import org.microbean.bean.Creation;
 import org.microbean.bean.DisposableReference;
@@ -42,8 +40,6 @@ import static org.microbean.scope.Scope.SINGLETON_ID;
 
 public final class NoneScopelet extends Scopelet<NoneScopelet> implements Constable {
 
-  private static final ClassDesc CD_NoneScopelet = ClassDesc.of(NoneScopelet.class.getName());
-
   public static final Id ID =
     new Id(List.of(declaredType(NoneScopelet.class),
                    declaredType(null,
@@ -51,6 +47,8 @@ public final class NoneScopelet extends Scopelet<NoneScopelet> implements Consta
                                 declaredType(NoneScopelet.class))),
            List.of(NONE_ID, anyQualifier()), // qualifiers
            SINGLETON_ID); // the scope we belong to
+
+  private static final ClassDesc CD_NoneScopelet = ClassDesc.of(NoneScopelet.class.getName());
 
   private static final boolean useDisposableReferences =
     Boolean.parseBoolean(System.getProperty("useDisposableReferences", "false"));
