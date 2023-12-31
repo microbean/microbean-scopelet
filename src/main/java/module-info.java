@@ -23,6 +23,7 @@ module org.microbean.scopelet {
 
   requires transitive org.microbean.bean;
   requires org.microbean.lang;
-  requires org.microbean.scope;
+  requires transitive org.microbean.qualifier;
+  requires transitive org.microbean.scope;
 
 }

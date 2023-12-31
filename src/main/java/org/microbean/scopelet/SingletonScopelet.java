@@ -34,8 +34,6 @@ import static org.microbean.scope.Scope.SINGLETON_ID;
 
 public final class SingletonScopelet extends MapBackedScopelet<SingletonScopelet> implements Constable {
 
-  private static final ClassDesc CD_SingletonScopelet = ClassDesc.of(SingletonScopelet.class.getName());
-
   public static final Id ID =
     new Id(List.of(declaredType(SingletonScopelet.class),
                    declaredType(null,
@@ -43,6 +41,8 @@ public final class SingletonScopelet extends MapBackedScopelet<SingletonScopelet
                                 declaredType(SingletonScopelet.class))),
            List.of(SINGLETON_ID, anyQualifier()), // qualifiers
            SINGLETON_ID); // the scope we belong to
+
+  private static final ClassDesc CD_SingletonScopelet = ClassDesc.of(SingletonScopelet.class.getName());
 
   public SingletonScopelet() {
     super(SINGLETON_ID); // the scope we implement

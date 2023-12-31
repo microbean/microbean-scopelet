@@ -14,20 +14,19 @@
 package org.microbean.scopelet;
 
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.VarHandle;
 
 import java.util.Objects;
 
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import org.microbean.bean.Id;
 import org.microbean.bean.ReferenceSelector;
 
 /**
  * An {@link AutoCloseable} pairing of an instance that can be destroyed with a {@link Destructor} that can destroy it
  * and an {@link AutoCloseable} that can release its dependent objects when needed.
+ *
+ * @param <I> the type of the instance
  *
  * @author <a href="https://about.me/lairdnelson" target="_parent">Laird Nelson</a>
  */
@@ -42,7 +41,7 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
       throw (Error)new ExceptionInInitializerError(reflectiveOperationException.getMessage()).initCause(reflectiveOperationException);
     }
   }
-  
+
   private final I object;
 
   private final AutoCloseable releaser;
@@ -140,7 +139,7 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
   public static interface Destructor<I> {
 
     public void destroy(final I i, final AutoCloseable acr, final ReferenceSelector r);
-    
+
   }
-  
+
 }

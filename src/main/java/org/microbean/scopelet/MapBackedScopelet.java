@@ -15,7 +15,6 @@ package org.microbean.scopelet;
 
 import java.util.Iterator;
 import java.util.Map.Entry;
-import java.util.Objects;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -25,10 +24,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import java.util.function.Supplier;
 
-import org.microbean.bean.AutoCloseableRegistry;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Factory;
-import org.microbean.bean.Id;
 import org.microbean.bean.ReferenceSelector;
 
 import org.microbean.qualifier.NamedAttributeMap;
