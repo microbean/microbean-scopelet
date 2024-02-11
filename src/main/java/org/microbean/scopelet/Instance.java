@@ -1,6 +1,6 @@
 /* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
  *
- * Copyright © 2023 microBean™.
+ * Copyright © 2023–2024 microBean™.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
@@ -20,6 +20,7 @@ import java.util.Objects;
 
 import java.util.function.Supplier;
 
+import org.microbean.bean.Creation;
 import org.microbean.bean.ReferenceSelector;
 
 /**
@@ -44,9 +45,11 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
   private final I object;
 
+  private final Destructor<I> destroyer;
+
   private final AutoCloseable releaser;
 
-  private final Destructor<I> destroyer;
+  private final Creation<I> creation;
 
   private final ReferenceSelector referenceSelector;
 
@@ -54,12 +57,22 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
   public Instance(final I object,
                   final Destructor<I> destroyer,
-                  final AutoCloseable releaser,
+                  final Creation<I> creation,
                   final ReferenceSelector referenceSelector) {
+    this(object, destroyer, creation, creation, referenceSelector);
+  }
+
+  private Instance(final I object,
+                   final Destructor<I> destroyer,
+                   final AutoCloseable releaser, // often the same object as creation
+                   final Creation<I> creation, // often the same object as releaser
+                   final ReferenceSelector referenceSelector) {
     super();
+    // All of these things are nullable on purpose.
     this.object = object;
     this.releaser = releaser;
     this.destroyer = destroyer;
+    this.creation = creation;
     this.referenceSelector = referenceSelector;
   }
 
@@ -77,7 +90,7 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
       RuntimeException t = null;
       try {
         if (this.destroyer != null) {
-          this.destroyer.destroy(this.object, this.releaser, this.referenceSelector);
+          this.destroyer.destroy(this.object, this.releaser, this.creation, this.referenceSelector);
         }
       } catch (final RuntimeException e) {
         t = e;
@@ -138,7 +151,7 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
 
   public static interface Destructor<I> {
 
-    public void destroy(final I i, final AutoCloseable acr, final ReferenceSelector r);
+    public void destroy(final I i, final AutoCloseable acr, final Creation<I> c, final ReferenceSelector rs);
 
   }
 

@@ -1,6 +1,6 @@
 # microBean™ Scopelet
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.microbean/microbean-scopelet/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.microbean/microbean-scopelet)
+[![Maven Central](https://img.shields.io/maven-central/v/org.microbean/microbean-scopelet.svg?label=Maven%20Central)](https://search.maven.org/artifact/org.microbean/microbean-scopelet)
 
 The microBean™ Scopelet project provides classes and interfaces assisting with implementing dependency injection scopes.
 
@@ -19,7 +19,7 @@ microBean™ Scopelet requires a Java runtime of version 21 or higher.
 
 # Installation
 
-microBean™ Scopelet is available on [Maven Central](https://search.maven.org/).  Include microBean™ Scopelet as a Maven
+microBean™ Scopelet is available on [Maven Central](https://search.maven.org/). Include microBean™ Scopelet as a Maven
 dependency:
 
 ```xml
@@ -27,7 +27,7 @@ dependency:
   <groupId>org.microbean</groupId>
   <artifactId>microbean-scopelet</artifactId>
   <!-- Always check https://search.maven.org/artifact/org.microbean/microbean-scopelet for up-to-date available versions. -->
-  <version>0.0.1</version>
+  <version>0.0.2</version>
 </dependency>
 ```
 
