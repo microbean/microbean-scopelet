@@ -17,31 +17,32 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.VarHandle;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+
+import org.microbean.attributes.Attributes;
+import org.microbean.attributes.BooleanValue;
+import org.microbean.attributes.Value;
 
 import org.microbean.bean.Bean;
 import org.microbean.bean.Id;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Request;
 
-import org.microbean.qualifier.NamedAttributeMap;
+import org.microbean.attributes.Attributes;
 
-import org.microbean.scope.ScopeMember;
-
-import static org.microbean.scope.Scope.SINGLETON_ID;
+import static org.microbean.assign.Qualifiers.primordialQualifier;
+import static org.microbean.assign.Qualifiers.qualifier;
 
 /**
- * A manager of object lifespans identified by a {@linkplain org.microbean.scope.Scope scope}.
+ * A manager of object lifespans identified by a scope.
  *
  * @param <S> the {@link Scopelet} subtype extending this class
  *
  * @author <a href="https://about.me/lairdnelson" target="_top">Laird Nelson</a>
- *
- * @see org.microbean.scope.Scope
- *
- * @see ScopeMember
  */
-public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, Factory<S>, ScopeMember {
+public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, Factory<S> {
 
 
   /*
@@ -64,6 +65,50 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   }
 
 
+  //
+  // Experimental; relocating/dismissing microbean-scope
+  //
+
+
+  /**
+   * An {@link Attributes} identifying the <dfn>scope designator</dfn>.
+   */
+  public static final Attributes SCOPE = Attributes.of("Scope");
+
+  private static final Map<String, Value<?>> normalScope = Map.of("normal", BooleanValue.of(true));
+
+  private static final Map<String, Value<?>> pseudoScope = Map.of("normal", BooleanValue.of(false));
+
+
+  /**
+   * An {@link Attributes} identifying the (well-known) <dfn>singleton pseudo-scope</dfn>.
+   *
+   * <p>The {@link Attributes} constituting the singleton pseudo-scope identifier is {@linkplain Attributes#attributes()
+   * attributed} with {@linkplain #SCOPE the scope designator}, {@linkplain org.microbean.assign.Qualifiers#qualifier()
+   * the qualifier designator}, and {@linkplain org.microbean.assign.Qualifiers#primordialQualifier() the primordial
+   * qualifier}, indicating that the scope it identifies governs itself.</p>
+   */
+  public static final Attributes SINGLETON_ID =
+    Attributes.of("Singleton", pseudoScope, Map.of(), Map.of("Singleton", List.of(qualifier(), SCOPE, primordialQualifier())));
+
+  /**
+   * An {@link Attributes} identifying the (well-known and <dfn>normal</dfn>) <dfn>application scope</dfn>.
+   */
+  public static final Attributes APPLICATION_ID =
+    Attributes.of("Application", normalScope, Map.of(), Map.of("Application", List.of(qualifier(), SCOPE, SINGLETON_ID)));
+
+  /**
+   * An {@link Attributes} identifying the (well-known) <dfn>none pseudo-scope</dfn>.
+   */
+  public static final Attributes NONE_ID =
+    Attributes.of("None", pseudoScope, Map.of(), Map.of("None", List.of(qualifier(), SCOPE, SINGLETON_ID)));
+
+
+  //
+  // End experimental
+  //
+
+
   /*
    * Instance fields.
    */
@@ -73,7 +118,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   private volatile boolean closed;
 
-  private final NamedAttributeMap<?> scopeId;
+  private final Attributes scopeId;
 
 
   /*
@@ -84,11 +129,11 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   /**
    * Creates a new {@link Scopelet}.
    *
-   * @param scopeId a {@link NamedAttributeMap} identifying the scope being implemented; must not be {@code null}
+   * @param scopeId an {@link Attributes} identifying the scope being implemented; must not be {@code null}
    *
    * @exception NullPointerException if {@code scopeId} is {@code null}
    */
-  protected Scopelet(final NamedAttributeMap<?> scopeId) {
+  protected Scopelet(final Attributes scopeId) {
     super();
     this.scopeId = Objects.requireNonNull(scopeId, "scopeId");
   }
@@ -106,14 +151,12 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    *
    * @return an {@link Id} representing this {@link Scopelet}; never {@code null}
    *
-   * @see #governingScopeId()
-   *
    * @see #bean()
    */
   public abstract Id id();
 
   /**
-   * Returns a {@link Bean} for this {@link Scopelet}.
+   * A convenience method that eturns a {@link Bean} for this {@link Scopelet}.
    *
    * <p>This {@link Scopelet} will be used as the {@link Bean}'s {@linkplain Bean#factory() associated
    * <code>Factory</code>}. This {@link Scopelet}'s {@link #id() Id} will be used as the {@link Bean}'s {@linkplain
@@ -187,14 +230,14 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   /**
    * Returns {@code true} if and only if the supplied {@link Object} is not {@code null}, has the same class as this
    * {@link Scopelet}, has an {@link #id() Id} {@linkplain Id#equals(Object) equal to} that of this {@link Scopelet},
-   * and a {@linkplain #scopeId() scope identifier} {@linkplain NamedAttributeMap#equals(Object) equal to} that of this
+   * and a {@linkplain #scopeId() scope identifier} {@linkplain Attributes#equals(Object) equal to} that of this
    * {@link Scopelet}.
    *
    * @param other the {@link Object} to test; may be {@code null}
    *
    * @return {@code true} if and only if the supplied {@link Object} is not {@code null}, has the same class as this
    * {@link Scopelet}, has an {@link #id() Id} {@linkplain Id#equals(Object) equal to} that of this {@link Scopelet},
-   * and a {@linkplain #scopeId() scope identifier} {@linkplain NamedAttributeMap#equals(Object) equal to} that of this
+   * and a {@linkplain #scopeId() scope identifier} {@linkplain Attributes#equals(Object) equal to} that of this
    * {@link Scopelet}
    */
   @Override // Object
@@ -211,36 +254,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     }
   }
 
-  /**
-   * Returns the {@link NamedAttributeMap} representing the identifier of the scope to which this {@link Scopelet}
-   * belongs.
-   *
-   * @return the {@link NamedAttributeMap} representing the identifier of the scope to which this {@link Scopelet}
-   * belongs; never {@code null}
-   *
-   * @see ScopeMember
-   */
-  @Override // ScopeMember
-  public final NamedAttributeMap<?> governingScopeId() {
-    return this.id().governingScopeId();
-  }
-
-  /**
-   * Returns {@code true} if this {@link Scopelet} is governed by the scope represented by the supplied {@link
-   * NamedAttributeMap}.
-   *
-   * @param scopeId a {@link NamedAttributeMap} identifying a scope; must not be {@code null}
-   *
-   * @return {@code true} if this {@link Scopelet} is governed by the scope represented by the supplied {@link
-   * NamedAttributeMap}
-   *
-   * @exception NullPointerException if {@code scopeId} is {@code null}
-   */
-  @Override // ScopeMember
-  public final boolean governedBy(final NamedAttributeMap<?> scopeId) {
-    return this.id().governedBy(scopeId);
-  }
-
 
   /*
    * Repository-like concerns.
@@ -248,11 +261,11 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
 
   /**
-   * Returns the {@link NamedAttributeMap} that identifies this {@link Scopelet}'s affiliated scope.
+   * Returns the {@link Attributes} that identifies this {@link Scopelet}'s affiliated scope.
    *
-   * @return the {@link NamedAttributeMap} that identifies this {@link Scopelet}'s affiliated scope; never {@code null}
+   * @return the {@link Attributes} that identifies this {@link Scopelet}'s affiliated scope; never {@code null}
    */
-  public final NamedAttributeMap<?> scopeId() {
+  public final Attributes scopeId() {
     return this.scopeId;
   }
 

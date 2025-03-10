@@ -22,10 +22,10 @@ module org.microbean.scopelet {
   exports org.microbean.scopelet;
 
   requires transitive org.microbean.assign;
+  requires org.microbean.attributes;
   requires transitive org.microbean.bean;
   requires            org.microbean.constant;
   requires            org.microbean.construct;
-  requires transitive org.microbean.qualifier;
-  requires transitive org.microbean.scope;
+  requires transitive org.microbean.reference;
 
 }

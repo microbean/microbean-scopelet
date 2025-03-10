@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.microbean.bean.BeanTypeList;
 import org.microbean.bean.Id;
 
 import org.microbean.construct.Domain;
@@ -30,8 +31,6 @@ import org.microbean.construct.Domain;
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
 import static org.microbean.assign.Qualifiers.anyQualifier;
-
-import static org.microbean.scope.Scope.SINGLETON_ID;
 
 /**
  * A {@link MapBackedScopelet} implementation that caches singletons.
@@ -57,12 +56,12 @@ public class SingletonScopelet extends MapBackedScopelet<SingletonScopelet> impl
   @Override // Scopelet<SingletonScopelet>
   public Id id() {
     return
-      new Id(List.of(this.domain.declaredType(SingletonScopelet.class.getName()),
-                     this.domain.declaredType(null,
-                                              this.domain.typeElement(Scopelet.class.getName()),
-                                              this.domain.declaredType(SingletonScopelet.class.getName()))),
-             List.of(SINGLETON_ID, anyQualifier()), // qualifiers
-             SINGLETON_ID); // the scope we belong to
+      new Id(BeanTypeList.of(this.domain,
+                             List.of(this.domain.declaredType(SingletonScopelet.class.getCanonicalName()),
+                                     this.domain.declaredType(null,
+                                                              this.domain.typeElement(Scopelet.class.getCanonicalName()),
+                                                              this.domain.declaredType(SingletonScopelet.class.getCanonicalName())))),
+             List.of(SINGLETON_ID, anyQualifier())); // qualifiers
   }
 
   @Override // Constable

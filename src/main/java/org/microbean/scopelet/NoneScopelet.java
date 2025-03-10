@@ -24,21 +24,17 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.microbean.bean.AutoCloseableRegistry;
+import org.microbean.bean.BeanTypeList;
 import org.microbean.bean.DisposableReference;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
 import org.microbean.bean.Request;
-
-import org.microbean.constant.Constables;
 
 import org.microbean.construct.Domain;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
 import static org.microbean.assign.Qualifiers.anyQualifier;
-
-import static org.microbean.scope.Scope.NONE_ID;
-import static org.microbean.scope.Scope.SINGLETON_ID;
 
 /**
  * A {@link Scopelet} implementation that does not cache objects at all.
@@ -67,12 +63,12 @@ public class NoneScopelet extends Scopelet<NoneScopelet> implements Constable {
   @Override // Scopelet<NoneScopelet>
   public Id id() {
     return
-      new Id(List.of(this.domain.declaredType(NoneScopelet.class.getName()),
-                     this.domain.declaredType(null,
-                                              this.domain.typeElement(Scopelet.class.getName()),
-                                              this.domain.declaredType(NoneScopelet.class.getName()))),
-             List.of(NONE_ID, anyQualifier()), // qualifiers
-             SINGLETON_ID); // the scope we belong to
+      new Id(BeanTypeList.of(this.domain,
+                             List.of(this.domain.declaredType(NoneScopelet.class.getCanonicalName()),
+                                     this.domain.declaredType(null,
+                                                              this.domain.typeElement(Scopelet.class.getCanonicalName()),
+                                                              this.domain.declaredType(NoneScopelet.class.getCanonicalName())))),
+             List.of(NONE_ID, anyQualifier())); // qualifiers
   }
 
   // All parameters are nullable.
