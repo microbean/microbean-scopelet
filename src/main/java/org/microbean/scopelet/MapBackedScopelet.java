@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Request;
 
-import org.microbean.qualifier.NamedAttributeMap;
+import org.microbean.attributes.Attributes;
 
 /**
  * A thread-safe, partial {@link Scopelet} implementation backed by {@link ConcurrentMap} machinery.
@@ -45,14 +45,14 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
   /**
    * Creates a new {@link MapBackedScopelet}.
    *
-   * @param scopeId a {@link NamedAttributeMap} identifying the scope this {@link MapBackedScopelet} serves; must not be
+   * @param scopeId an {@link Attributes} identifying the scope this {@link MapBackedScopelet} serves; must not be
    * {@code null}
    *
    * @exception NullPointerException if {@code scopeId} is {@code null}
    *
-   * @see Scopelet#Scopelet(NamedAttributeMap)
+   * @see Scopelet#Scopelet(Attributes)
    */
-  protected MapBackedScopelet(final NamedAttributeMap<?> scopeId) {
+  protected MapBackedScopelet(final Attributes scopeId) {
     super(scopeId);
     this.creationLocks = new ConcurrentHashMap<>();
     this.instances = new ConcurrentHashMap<>();
