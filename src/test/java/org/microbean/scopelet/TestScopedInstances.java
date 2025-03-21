@@ -30,6 +30,7 @@ import org.microbean.construct.Domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,7 +54,7 @@ final class TestScopedInstances {
   @BeforeAll
   static final void setup() {
     d = new DefaultDomain();
-    i = new ScopedInstances(d, Selectable.of(), Reducer.ofFailing());
+    i = new ScopedInstances(d);
   }
 
   @Test
@@ -79,10 +80,17 @@ final class TestScopedInstances {
   }
 
   @Test
+  final void testNoneIsNotPrimordial() {
+    assertSame(NONE_ID, i.findScopeId(List.of(NONE_ID)));
+    assertFalse(NONE_ID.attributes().contains(primordialQualifier()));
+    assertSame(SINGLETON_ID, i.findScopeId(NONE_ID.attributes()));
+  }
+  
+  @Test
   final void testSingletonIsPrimordial() {
-    final Attributes singletonId = i.findScopeId(List.of(SINGLETON_ID));
-    assertSame(SINGLETON_ID, singletonId);
+    assertSame(SINGLETON_ID, i.findScopeId(List.of(SINGLETON_ID)));
     assertTrue(SINGLETON_ID.attributes().contains(primordialQualifier()));
+    assertNull(i.findScopeId(SINGLETON_ID.attributes()));
   }
 
 }

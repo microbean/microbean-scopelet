@@ -19,18 +19,12 @@ import java.lang.constant.ConstantDesc;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodHandleDesc;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-
-import org.microbean.bean.BeanTypeList;
-import org.microbean.bean.Id;
 
 import org.microbean.construct.Domain;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
-
-import static org.microbean.assign.Qualifiers.anyQualifier;
 
 /**
  * A {@link MapBackedScopelet} implementation that caches singletons.
@@ -49,19 +43,8 @@ public class SingletonScopelet extends MapBackedScopelet<SingletonScopelet> impl
    * @exception NullPointerException if {@code domain} is {@code null}
    */
   public SingletonScopelet(final Domain domain) {
-    super(SINGLETON_ID); // the scope we implement
+    super();
     this.domain = Objects.requireNonNull(domain, "domain");
-  }
-
-  @Override // Scopelet<SingletonScopelet>
-  public Id id() {
-    return
-      new Id(BeanTypeList.of(this.domain,
-                             List.of(this.domain.declaredType(SingletonScopelet.class.getCanonicalName()),
-                                     this.domain.declaredType(null,
-                                                              this.domain.typeElement(Scopelet.class.getCanonicalName()),
-                                                              this.domain.declaredType(SingletonScopelet.class.getCanonicalName())))),
-             List.of(SINGLETON_ID, anyQualifier())); // qualifiers
   }
 
   @Override // Constable
