@@ -4,7 +4,7 @@
 
   <groupId>org.microbean</groupId>
   <artifactId>microbean-scopelet</artifactId>
-  <version>0.0.7</version>
+  <version>0.0.8-SNAPSHOT</version>
 
   <name>microBean™ Scopelet</name>
   <description>microBean™ Scopelet: Utility classes for implementing scopelets.</description>
@@ -43,7 +43,7 @@
     <connection>${scm.url}</connection>
     <developerConnection>${scm.url}</developerConnection>
     <url>https://github.com/microbean/microbean-scopelet/</url>
-    <tag>v0.0.7</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <issueManagement>
