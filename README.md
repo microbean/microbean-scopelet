@@ -15,7 +15,7 @@ changes, regardless of project version and without notice.**
 
 # Requirements
 
-microBean™ Scopelet requires a Java runtime of version 21 or higher.
+microBean™ Scopelet requires a Java runtime of version 16 or higher.
 
 # Installation
 
@@ -27,7 +27,7 @@ dependency:
   <groupId>org.microbean</groupId>
   <artifactId>microbean-scopelet</artifactId>
   <!-- Always check https://search.maven.org/artifact/org.microbean/microbean-scopelet for up-to-date available versions. -->
-  <version>0.0.6</version>
+  <version>0.0.7</version>
 </dependency>
 ```
 

@@ -45,15 +45,10 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
   /**
    * Creates a new {@link MapBackedScopelet}.
    *
-   * @param scopeId an {@link Attributes} identifying the scope this {@link MapBackedScopelet} serves; must not be
-   * {@code null}
-   *
-   * @exception NullPointerException if {@code scopeId} is {@code null}
-   *
-   * @see Scopelet#Scopelet(Attributes)
+   * @see Scopelet#Scopelet()
    */
-  protected MapBackedScopelet(final Attributes scopeId) {
-    super(scopeId);
+  protected MapBackedScopelet() {
+    super();
     this.creationLocks = new ConcurrentHashMap<>();
     this.instances = new ConcurrentHashMap<>();
   }

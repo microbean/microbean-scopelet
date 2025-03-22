@@ -19,15 +19,12 @@ import java.lang.constant.ConstantDesc;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodHandleDesc;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import org.microbean.bean.AutoCloseableRegistry;
-import org.microbean.bean.BeanTypeList;
 import org.microbean.bean.DisposableReference;
 import org.microbean.bean.Factory;
-import org.microbean.bean.Id;
 import org.microbean.bean.Request;
 
 import org.microbean.construct.Domain;
@@ -56,19 +53,8 @@ public class NoneScopelet extends Scopelet<NoneScopelet> implements Constable {
    * @exception NullPointerException if {@code domain} is {@code null}
    */
   public NoneScopelet(final Domain domain) {
-    super(NONE_ID); // the scope we implement
+    super();
     this.domain = Objects.requireNonNull(domain, "domain");
-  }
-
-  @Override // Scopelet<NoneScopelet>
-  public Id id() {
-    return
-      new Id(BeanTypeList.of(this.domain,
-                             List.of(this.domain.declaredType(NoneScopelet.class.getCanonicalName()),
-                                     this.domain.declaredType(null,
-                                                              this.domain.typeElement(Scopelet.class.getCanonicalName()),
-                                                              this.domain.declaredType(NoneScopelet.class.getCanonicalName())))),
-             List.of(NONE_ID, anyQualifier())); // qualifiers
   }
 
   // All parameters are nullable.

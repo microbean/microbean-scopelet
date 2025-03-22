@@ -73,7 +73,7 @@
     <java.util.logging.config.file>${project.basedir}/src/test/java/logging.properties</java.util.logging.config.file>
 
     <!-- maven-compiler-plugin properties -->
-    <maven.compiler.release>23</maven.compiler.release>
+    <maven.compiler.release>16</maven.compiler.release>
     <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation>
     <maven.compiler.showWarnings>true</maven.compiler.showWarnings>
 
@@ -147,7 +147,7 @@
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-bean</artifactId>
-        <version>0.0.15</version>
+        <version>0.0.16</version>
       </dependency>
 
       <dependency>
@@ -159,7 +159,7 @@
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-reference</artifactId>
-        <version>0.0.1</version>
+        <version>0.0.2</version>
       </dependency>
 
     </dependencies>

@@ -19,24 +19,20 @@ import java.lang.invoke.VarHandle;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.microbean.attributes.Attributes;
 import org.microbean.attributes.BooleanValue;
 import org.microbean.attributes.Value;
 
 import org.microbean.bean.Bean;
-import org.microbean.bean.Id;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Request;
-
-import org.microbean.attributes.Attributes;
 
 import static org.microbean.assign.Qualifiers.primordialQualifier;
 import static org.microbean.assign.Qualifiers.qualifier;
 
 /**
- * A manager of object lifespans identified by a scope.
+ * A manager of object lifespans on behalf of one or more notional <dfn>scopes</dfn>.
  *
  * @param <S> the {@link Scopelet} subtype extending this class
  *
@@ -64,12 +60,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     }
   }
 
-
-  //
-  // Experimental; relocating/dismissing microbean-scope
-  //
-
-
   /**
    * An {@link Attributes} identifying the <dfn>scope designator</dfn>.
    */
@@ -78,7 +68,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   private static final Map<String, Value<?>> normalScope = Map.of("normal", BooleanValue.of(true));
 
   private static final Map<String, Value<?>> pseudoScope = Map.of("normal", BooleanValue.of(false));
-
 
   /**
    * An {@link Attributes} identifying the (well-known) <dfn>singleton pseudo-scope</dfn>.
@@ -104,11 +93,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     Attributes.of("None", pseudoScope, Map.of(), Map.of("None", List.of(qualifier(), SCOPE, SINGLETON_ID)));
 
 
-  //
-  // End experimental
-  //
-
-
   /*
    * Instance fields.
    */
@@ -118,8 +102,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   private volatile boolean closed;
 
-  private final Attributes scopeId;
-
 
   /*
    * Constructors.
@@ -128,14 +110,9 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   /**
    * Creates a new {@link Scopelet}.
-   *
-   * @param scopeId an {@link Attributes} identifying the scope being implemented; must not be {@code null}
-   *
-   * @exception NullPointerException if {@code scopeId} is {@code null}
    */
-  protected Scopelet(final Attributes scopeId) {
+  protected Scopelet() {
     super();
-    this.scopeId = Objects.requireNonNull(scopeId, "scopeId");
   }
 
 
@@ -143,32 +120,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * Instance methods.
    */
 
-
-  /**
-   * Returns an {@link Id} representing this {@link Scopelet}.
-   *
-   * <p>Implementations of this method must return determinate values.</p>
-   *
-   * @return an {@link Id} representing this {@link Scopelet}; never {@code null}
-   *
-   * @see #bean()
-   */
-  public abstract Id id();
-
-  /**
-   * A convenience method that eturns a {@link Bean} for this {@link Scopelet}.
-   *
-   * <p>This {@link Scopelet} will be used as the {@link Bean}'s {@linkplain Bean#factory() associated
-   * <code>Factory</code>}. This {@link Scopelet}'s {@link #id() Id} will be used as the {@link Bean}'s {@linkplain
-   * Bean#id() identifier}.</p>
-   *
-   * @return a {@link Bean} for this {@link Scopelet}; never {@code null}
-   *
-   * @see #id()
-   */
-  public final Bean<S> bean() {
-    return new Bean<>(this.id(), this);
-  }
 
   /**
    * Creates this {@link Scopelet} by simply returning it.
@@ -214,60 +165,11 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
     return true;
   }
 
-  /**
-   * Returns a hashcode for this {@link Scopelet}.
-   *
-   * @return a hashcode for this {@link Scopelet}
-   */
-  @Override // Object
-  public int hashCode() {
-    int hashCode = 17;
-    hashCode = 31 * hashCode + this.id().hashCode();
-    hashCode = 31 * hashCode + this.scopeId().hashCode();
-    return hashCode;
-  }
-
-  /**
-   * Returns {@code true} if and only if the supplied {@link Object} is not {@code null}, has the same class as this
-   * {@link Scopelet}, has an {@link #id() Id} {@linkplain Id#equals(Object) equal to} that of this {@link Scopelet},
-   * and a {@linkplain #scopeId() scope identifier} {@linkplain Attributes#equals(Object) equal to} that of this
-   * {@link Scopelet}.
-   *
-   * @param other the {@link Object} to test; may be {@code null}
-   *
-   * @return {@code true} if and only if the supplied {@link Object} is not {@code null}, has the same class as this
-   * {@link Scopelet}, has an {@link #id() Id} {@linkplain Id#equals(Object) equal to} that of this {@link Scopelet},
-   * and a {@linkplain #scopeId() scope identifier} {@linkplain Attributes#equals(Object) equal to} that of this
-   * {@link Scopelet}
-   */
-  @Override // Object
-  public boolean equals(final Object other) {
-    if (other == this) {
-      return true;
-    } else if (other != null && other.getClass().equals(this.getClass())) {
-      final Scopelet<?> her = (Scopelet<?>)other;
-      return
-        Objects.equals(this.id(), her.id()) &&
-        Objects.equals(this.scopeId(), her.scopeId());
-    } else {
-      return false;
-    }
-  }
-
 
   /*
    * Repository-like concerns.
    */
 
-
-  /**
-   * Returns the {@link Attributes} that identifies this {@link Scopelet}'s affiliated scope.
-   *
-   * @return the {@link Attributes} that identifies this {@link Scopelet}'s affiliated scope; never {@code null}
-   */
-  public final Attributes scopeId() {
-    return this.scopeId;
-  }
 
   /**
    * Returns {@code true} if and only if this {@link Scopelet} is <dfn>active</dfn> at the moment of the call.
@@ -305,6 +207,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    *
    * @see #instance(Object, Factory, Request)
    */
+  // @Deprecated // This method is not actually used but would need to exist for design flaws in CDI
   public boolean containsId(final Object id) {
     return (id instanceof Request<?> r ? this.instance(r) : this.instance(id, null, null)) != null;
   }
@@ -359,8 +262,8 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * @see #instance(Object, Factory, Request)
    */
   public final <I> I instance(final Request<I> request) {
-    if (request == null) {
-      return this.instance(null, null, null);
+    if (request == null || request.primordial()) {
+      return this.instance(null, null, request);
     }
     final Bean<I> bean = request.beanReduction().bean();
     return this.instance(bean.id(), bean.factory(), request);
@@ -391,8 +294,8 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * Checks to see if this {@link Scopelet} {@linkplain #active() is active} and then removes any contextual instance
    * stored under the supplied {@code id}, returning {@code true} if and only if removal actually took place.
    *
-   * <p>The default implementation of this method always returns {@code false}. Subclasses are encouraged to override
-   * it as appropriate.</p>
+   * <p><strong>The default implementation of this method always returns {@code false}.</strong> Subclasses are
+   * encouraged to override it as appropriate.</p>
    *
    * @param id an identifier; may be {@code null}
    *
@@ -409,8 +312,11 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   }
 
   /**
-   * Irrevocably closes this {@link Scopelet}, and, by doing so, notionally makes it irrevocably {@linkplain #active()
-   * inactive}.
+   * Irrevocably closes this {@link Scopelet}, and, by doing so, notionally makes it irrevocably {@linkplain #closed()
+   * closed} and {@linkplain #active() inactive}.
+   *
+   * <p>Overrides of this method must call {@link Scopelet#close() super.close()} as part of their implementation or
+   * undefined behavior may result.</p>
    *
    * @see #closed()
    *
@@ -429,6 +335,8 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    *
    * @return {@code true} if and only if at the moment of invocation this {@link Scopelet} is (irrevocably) closed (and
    * therefore also {@linkplain #active() not active})
+   *
+   * @see #active()
    */
   protected final boolean closed() {
     return this.closed; // volatile read
