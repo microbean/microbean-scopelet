@@ -13,7 +13,6 @@
  */
 package org.microbean.scopelet;
 
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.VarHandle;
 
@@ -25,8 +24,10 @@ import org.microbean.attributes.BooleanValue;
 import org.microbean.attributes.Value;
 
 import org.microbean.bean.Bean;
+import org.microbean.bean.Creation;
 import org.microbean.bean.Factory;
-import org.microbean.bean.Request;
+
+import static java.lang.invoke.MethodHandles.lookup;
 
 import static org.microbean.assign.Qualifiers.primordialQualifier;
 import static org.microbean.assign.Qualifiers.qualifier;
@@ -37,6 +38,8 @@ import static org.microbean.assign.Qualifiers.qualifier;
  * @param <S> the {@link Scopelet} subtype extending this class
  *
  * @author <a href="https://about.me/lairdnelson" target="_top">Laird Nelson</a>
+ *
+ * @see #instance(Object, Factory, Creation)
  */
 public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, Factory<S> {
 
@@ -51,7 +54,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   private static final VarHandle ME;
 
   static {
-    final Lookup lookup = MethodHandles.lookup();
+    final Lookup lookup = lookup();
     try {
       CLOSED = lookup.findVarHandle(Scopelet.class, "closed", boolean.class);
       ME = lookup.findVarHandle(Scopelet.class, "me", Scopelet.class);
@@ -128,7 +131,7 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    */
   @Override // Factory<S>
   @SuppressWarnings("unchecked")
-  public final S create(final Request<S> r) {
+  public final S create(final Creation<S> r) {
     if (ME.compareAndSet(this, null, this)) { // volatile write
       if (r != null) {
         // TODO: emit initialized event
@@ -138,12 +141,12 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   }
 
   /**
-   * Returns this {@link Scopelet} if it has been created via the {@link #create(Request)} method, or {@code null} if
+   * Returns this {@link Scopelet} if it has been created via the {@link #create(Creation)} method, or {@code null} if
    * that method has not yet been invoked.
    *
-   * @return this {@link Scopelet} if it has been "{@linkplain #create(Request) created}"; {@code null} otherwise
+   * @return this {@link Scopelet} if it has been "{@linkplain #create(Creation) created}"; {@code null} otherwise
    *
-   * @see #create(Request)
+   * @see #create(Creation)
    */
   @Override // Factory<S>
   public final S singleton() {
@@ -152,13 +155,13 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   /**
    * Returns {@code true} when invoked to indicate that {@link Scopelet} implementations {@linkplain
-   * Factory#destroy(Object, Request) destroy} what they {@linkplain #create(Request) create}.
+   * Factory#destroy(Object, org.microbean.bean.Destruction) destroy} what they {@linkplain #create(Creation) create}.
    *
    * @return {@code true} when invoked
    *
-   * @see Factory#destroy(Object, Request)
+   * @see Factory#destroy(Object, org.microbean.bean.Destruction)
    *
-   * @see #create(Request)
+   * @see #create(Creation)
    */
   @Override // Factory<S>
   public final boolean destroys() {
@@ -186,93 +189,9 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   }
 
   /**
-   * Checks to see if this {@link Scopelet} {@linkplain #active() is active} and then returns {@code true} if and only
-   * if, at the moment of an invocation, this {@link Scopelet} {@linkplain #active() is active} and already contains an
-   * object identified by the supplied {@link Object}.
-   *
-   * <p>The default implementation of this method checks to see if this {@link Scopelet} {@linkplain #active() is
-   * active}, and then {@code true} if and only if the result of invoking the {@link #instance(Object, Factory,
-   * Request)} method with the supplied {@code id}, {@code null}, and {@code null} is not {@code null}.</p>
-   *
-   * <p>Subclasses are encouraged to override this method to be more efficient or to use a different algorithm.</p>
-   *
-   * @param id the {@link Object} serving as an identifier; may be {@code null} in certain pathological cases
-   *
-   * @return {@code true} if and only if, at the moment of an invocation, this {@link Scopelet} {@linkplain #active() is
-   * active} and contains a preexisting object identified by the supplied {@link Object}
-   *
-   * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
-   *
-   * @see #active()
-   *
-   * @see #instance(Object, Factory, Request)
-   */
-  // @Deprecated // This method is not actually used but would need to exist for design flaws in CDI
-  public boolean containsId(final Object id) {
-    return (id instanceof Request<?> r ? this.instance(r) : this.instance(id, null, null)) != null;
-  }
-
-  /**
-   * Checks to see if this {@link Scopelet} {@linkplain #active() is active}, and then returns the preexisting
-   * contextual instance identified by the supplied {@link Object}, or {@code null} if no such instance exists.
-   *
-   * <p>This convenience method checks to see if this {@link Scopelet} {@linkplain #active() is active}, and then, if
-   * the supplied {@link Object} is not a {@link Request}, calls the {@link #instance(Object, Factory, Request)} method
-   * with the supplied {@code id}, {@code null}, and {@code null}, and returns its result.</p>
-   *
-   * <p>If the supplied {@link Object} <em>is</em> a {@link Request}, this method calls the {@link #instance(Request)}
-   * method with the supplied (cast) {@code id} and returns its result.</p>
-   *
-   * @param <I> the type of contextual instance
-   *
-   * @param id an {@link Object} serving as an identifier; may be {@code null} in certain pathological cases
-   *
-   * @return the contextual instance identified by the supplied {@link Object}, or {@code null} if no such instance
-   * exists
-   *
-   * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
-   *
-   * @see #instance(Object, Factory, Request)
-   *
-   * @see #instance(Request)
-   */
-  // id is nullable.
-  @SuppressWarnings("unchecked")
-  public final <I> I get(final Object id) {
-    return id instanceof Request<?> r ? this.instance((Request<I>)r) : this.instance(id, null, null);
-  }
-
-  /**
-   * Checks to see if this {@link Scopelet} {@linkplain #active() is active} and then eturns a contextual instance
-   * identified by the {@linkplain Request#beanReduction() identifying information} present within the supplied {@link
-   * Request}, creating the instance and associating it with the {@linkplain Request#beanReduction() identifying
-   * information} present within the supplied {@link Request} if necessary.
-   *
-   * @param <I> the type of contextual instance
-   *
-   * @param request a {@link Request}; may be {@code null} in which case the return value of an invocation of {@link
-   * #instance(Object, Factory, Request)} with {@code null} supplied for all three arguments will be returned instead
-   *
-   * @return an appropriate contextual instance, or {@code null}
-   *
-   * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
-   *
-   * @see Request#beanReduction()
-   *
-   * @see #instance(Object, Factory, Request)
-   */
-  public final <I> I instance(final Request<I> request) {
-    if (request == null || request.primordial()) {
-      return this.instance(null, null, request);
-    }
-    final Bean<I> bean = request.beanReduction().bean();
-    return this.instance(bean.id(), bean.factory(), request);
-  }
-
-  /**
    * Checks to see if this {@link Scopelet} {@linkplain #active() is active} and then returns a pre-existing or
    * created-on-demand contextual instance suitable for the combination of identifier, {@link Factory} and {@link
-   * Request}.
+   * Creation}, or {@code null}
    *
    * @param <I> the type of contextual instance
    *
@@ -280,15 +199,19 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    *
    * @param factory a {@link Factory}; may be {@code null}
    *
-   * @param request a {@link Request}, typically the one in effect that is causing this method to be invoked in the
+   * @param creation a {@link Creation}, typically the one in effect that is causing this method to be invoked in the
    * first place; may be {@code null}
    *
    * @return a contextual instance, possibly pre-existing, or possibly created just in time, or {@code null}
    *
    * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
+   *
+   * @exception ClassCastException if {@code creation} is non-{@code null} and does not implement {@link
+   * org.microbean.bean.Destruction}, a requirement of its contract
+   *
+   * @see Creation
    */
-  // All parameters are nullable, perhaps pathologically. This helps permit super early bootstrapping.
-  public abstract <I> I instance(final Object id, final Factory<I> factory, final Request<I> request);
+  public abstract <I> I instance(final Object id, final Factory<I> factory, final Creation<I> creation);
 
   /**
    * Checks to see if this {@link Scopelet} {@linkplain #active() is active} and then removes any contextual instance
@@ -303,7 +226,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    *
    * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
    */
-  // id is nullable.
   public boolean remove(final Object id) {
     if (!this.active()) {
       throw new InactiveScopeletException();
@@ -315,15 +237,13 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * Irrevocably closes this {@link Scopelet}, and, by doing so, notionally makes it irrevocably {@linkplain #closed()
    * closed} and {@linkplain #active() inactive}.
    *
-   * <p>Overrides of this method must call {@link Scopelet#close() super.close()} as part of their implementation or
-   * undefined behavior may result.</p>
+   * <p>Overrides of this method <strong>must</strong> call {@link Scopelet#close() super.close()} as part of their
+   * implementation or undefined behavior may result.</p>
    *
    * @see #closed()
    *
    * @see #active()
    */
-  // Most scopelets will want to override this to do additional work. They must call super.close() to ensure #closed()
-  // returns an appropriate value.
   @Override // AutoCloseable
   public void close() {
     CLOSED.compareAndSet(this, false, true); // volatile write

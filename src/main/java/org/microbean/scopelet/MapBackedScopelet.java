@@ -24,10 +24,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import java.util.function.Supplier;
 
+import org.microbean.bean.Creation;
+import org.microbean.bean.Destruction;
 import org.microbean.bean.Factory;
-import org.microbean.bean.Request;
-
-import org.microbean.attributes.Attributes;
 
 /**
  * A thread-safe, partial {@link Scopelet} implementation backed by {@link ConcurrentMap} machinery.
@@ -35,12 +34,26 @@ import org.microbean.attributes.Attributes;
  * @param <M> the {@link MapBackedScopelet} subclass extending this class
  *
  * @author <a href="https://about.me/lairdnelson" target="_top">Laird Nelson</a>
+ *
+ * @see #instance(Object, Factory, Creation)
  */
 public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends Scopelet<M> {
+
+
+  /*
+   * Instance fields.
+   */
+
 
   private final ConcurrentMap<Object, Instance<?>> instances;
 
   private final ConcurrentMap<Object, ReentrantLock> creationLocks;
+
+
+  /*
+   * Constructors.
+   */
+
 
   /**
    * Creates a new {@link MapBackedScopelet}.
@@ -53,23 +66,72 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     this.instances = new ConcurrentHashMap<>();
   }
 
+
+  /*
+   * Instance methods.
+   */
+
+
+  @Override // Scopelet<M>
+  public void close() {
+    if (this.closed()) {
+      return;
+    }
+    super.close(); // critical
+    final Iterator<Entry<Object, ReentrantLock>> i = this.creationLocks.entrySet().iterator();
+    while (i.hasNext()) {
+      final Entry<?, ? extends ReentrantLock> e = i.next();
+      try {
+        e.getValue().unlock();
+      } finally {
+        i.remove();
+      }
+    }
+    final Iterator<Entry<Object, Instance<?>>> i2 = this.instances.entrySet().iterator();
+    while (i2.hasNext()) {
+      final Entry<?, ? extends Instance<?>> e = i2.next();
+      try {
+        e.getValue().close();
+      } finally {
+        i2.remove();
+      }
+    }
+  }
+
   // All parameters are nullable.
   @Override // Scopelet<M>
-  public <I> I instance(final Object beanId,
-                        final Factory<I> factory,
-                        final Request<I> request) {
+  public <I> I instance(final Object beanId, final Factory<I> factory, final Creation<I> creation) {
     if (!this.active()) {
       throw new InactiveScopeletException();
     } else if (beanId == null) {
       return null;
     }
-    final Supplier<? extends I> s = this.supplier(beanId, factory, request);
+    final Supplier<? extends I> s = this.supplier(beanId, factory, creation);
     return s == null ? null : s.get();
+  }
+
+  // If candidate is not present in this.creationLocks, puts it in in a locked state atomically and returns
+  // it. Otherwise returns the pre-existing creation lock, which, by definition, will already be locked.
+  private final ReentrantLock lockedCreationLock(final Object id, final ReentrantLock candidate) {
+    if (candidate.isLocked()) {
+      throw new IllegalArgumentException("candidate.isLocked(): " + candidate);
+    }
+    try {
+      return this.creationLocks.computeIfAbsent(id, x -> lock(candidate));
+    } catch (final RuntimeException | Error justBeingCareful) {
+      // ReentrantLock#lock() is not documented to throw anything, but if it does, make sure we unlock it.
+      try {
+        candidate.unlock();
+      } catch (final RuntimeException | Error suppressMe) {
+        justBeingCareful.addSuppressed(suppressMe);
+      }
+      throw justBeingCareful;
+    }
   }
 
   private final <I> Supplier<I> supplier(final Object id,
                                          final Factory<I> factory,
-                                         final Request<I> request) {
+                                         final Creation<I> creation) {
     // (Don't use computeIfAbsent().)
     @SuppressWarnings("unchecked")
     final Supplier<I> supplier = (Supplier<I>)this.instances.get(id);
@@ -103,9 +165,9 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
         // Perform creation.
         @SuppressWarnings("unchecked")
         final Instance<I> newInstance =
-          new Instance<I>(factory == this ? (I)this : factory.create(request),
+          new Instance<I>(factory == this ? (I)this : factory.create(creation),
                           factory::destroy, // Destructor
-                          request);
+                          (Destruction)creation);
 
         // Put the created instance into our instance map. There will not be a pre-existing instance.
         final Object previous = this.instances.put(id, newInstance);
@@ -130,7 +192,8 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     // inserted into the map. It will therefore be unlocked (it was never locked in the first place). Discard it in
     // preparation for switching locks to creationLock instead.
     assert !newLock.isLocked() : "newLock was locked: " + newLock;
-    assert !this.creationLocks.containsValue(newLock) : "Creation lock contained " + newLock + "; creationLock: " + creationLock;
+    assert !this.creationLocks.containsValue(newLock) :
+      "Creation locks contained " + newLock + "; creationLock: " + creationLock;
     // Lock and unlock in rapid succession. Why?  lock() will block if another thread is currently creating, and will
     // return immediately if it is not. This is kind of a cheap way of doing Object.wait().
     try {
@@ -152,7 +215,7 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
       throw new CreationCycleDetectedException();
     }
     // The other thread finished creating; let's try again to pick up its results.
-    return this.supplier(id, factory, request); // RECURSIVE
+    return this.supplier(id, factory, creation); // RECURSIVE
   }
 
   @Override // Scopelet<M>
@@ -170,50 +233,11 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
     return false;
   }
 
-  @Override // Scopelet<M>
-  public void close() {
-    if (this.closed()) {
-      return;
-    }
-    super.close(); // critical
-    final Iterator<Entry<Object, ReentrantLock>> i = this.creationLocks.entrySet().iterator();
-    while (i.hasNext()) {
-      final Entry<?, ? extends ReentrantLock> e = i.next();
-      try {
-        e.getValue().unlock();
-      } finally {
-        i.remove();
-      }
-    }
-    final Iterator<Entry<Object, Instance<?>>> i2 = this.instances.entrySet().iterator();
-    while (i2.hasNext()) {
-      final Entry<?, ? extends Instance<?>> e = i2.next();
-      try {
-        e.getValue().close();
-      } finally {
-        i2.remove();
-      }
-    }
-  }
 
-  // If candidate is not present in this.creationLocks, puts it in in a locked state atomically and returns
-  // it. Otherwise returns the pre-existing creation lock, which, by definition, will already be locked.
-  private final ReentrantLock lockedCreationLock(final Object id, final ReentrantLock candidate) {
-    if (candidate.isLocked()) {
-      throw new IllegalArgumentException("candidate.isLocked(): " + candidate);
-    }
-    try {
-      return this.creationLocks.computeIfAbsent(id, x -> lock(candidate));
-    } catch (final RuntimeException | Error justBeingCareful) {
-      // ReentrantLock#lock() is not documented to throw anything, but if it does, make sure we unlock it.
-      try {
-        candidate.unlock();
-      } catch (final RuntimeException | Error suppressMe) {
-        justBeingCareful.addSuppressed(suppressMe);
-      }
-      throw justBeingCareful;
-    }
-  }
+  /*
+   * Static methods.
+   */
+
 
   private static final <T extends Lock> T lock(final T candidate) {
     candidate.lock();
