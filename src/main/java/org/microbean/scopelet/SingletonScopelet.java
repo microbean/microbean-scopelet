@@ -19,10 +19,7 @@ import java.lang.constant.ConstantDesc;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodHandleDesc;
 
-import java.util.Objects;
 import java.util.Optional;
-
-import org.microbean.construct.Domain;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
 
@@ -33,27 +30,18 @@ import static java.lang.constant.ConstantDescs.BSM_INVOKE;
  */
 public class SingletonScopelet extends MapBackedScopelet<SingletonScopelet> implements Constable {
 
-  private final Domain domain;
-
   /**
    * Creates a new {@link SingletonScopelet}.
-   *
-   * @param domain a {@link Domain}; must not be {@code null}
-   *
-   * @exception NullPointerException if {@code domain} is {@code null}
    */
-  public SingletonScopelet(final Domain domain) {
+  public SingletonScopelet() {
     super();
-    this.domain = Objects.requireNonNull(domain, "domain");
   }
 
   @Override // Constable
   public Optional<? extends ConstantDesc> describeConstable() {
-    return (this.domain instanceof Constable c ? c.describeConstable() : Optional.<ConstantDesc>empty())
-      .map(domainDesc -> DynamicConstantDesc.of(BSM_INVOKE,
-                                             MethodHandleDesc.ofConstructor(ClassDesc.of(this.getClass().getName()),
-                                                                            ClassDesc.of(Domain.class.getName())),
-                                             domainDesc));
+    return
+      Optional.of(DynamicConstantDesc.of(BSM_INVOKE,
+                                         MethodHandleDesc.ofConstructor(ClassDesc.of(this.getClass().getName()))));
   }
 
 }

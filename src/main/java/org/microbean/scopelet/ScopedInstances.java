@@ -31,14 +31,13 @@ import org.microbean.attributes.BooleanValue;
 import org.microbean.bean.AmbiguousReductionException;
 import org.microbean.bean.AttributedType;
 import org.microbean.bean.Bean;
+import org.microbean.bean.Creation;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
 import org.microbean.bean.RankedReducer;
 import org.microbean.bean.Reducer;
 import org.microbean.bean.Reducible;
-import org.microbean.bean.Request;
 import org.microbean.bean.Selectable;
-import org.microbean.bean.Reducer;
 
 import org.microbean.construct.Domain;
 
@@ -52,12 +51,34 @@ import static org.microbean.assign.Qualifiers.qualifier;
  * An {@link Instances} implementation that is based on scopes.
  *
  * @author <a href="https://about.me/lairdnelson" target="_top">Laird Nelson</a>
+ *
+ * @see #supplier(Bean, Creation)
+ *
+ * @see Instances
  */
 public class ScopedInstances implements Instances {
 
+
+  /*
+   * Static fields.
+   */
+
+
   private static final Attributes FOR_INSTANTIATION = Attributes.of("ForInstantiation");
 
+
+  /*
+   * Instance fields.
+   */
+
+
   private final TypeMirror scopeletType;
+
+
+  /*
+   * Constructors.
+   */
+
 
   /**
    * Creates a new {@link ScopedInstances}.
@@ -111,7 +132,7 @@ public class ScopedInstances implements Instances {
     }
     return scopeId;
   }
-  
+
   /**
    * Finds and returns the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
    * Attributes}.
@@ -179,7 +200,7 @@ public class ScopedInstances implements Instances {
   private final boolean primordial(final Attributed a) {
     return this.primordial(a.attributes());
   }
-  
+
   /**
    * Returns {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
    * something as <dfn>primordial</dfn>.
@@ -200,20 +221,6 @@ public class ScopedInstances implements Instances {
   }
 
   /**
-   * Returns {@code true} if and only if the supplied {@link Request} is deemed to be <dfn>primordial</dfn>.
-   *
-   * <p>A {@link Request} is normally primordial if it is {@code null} or if an invocation of its {@link
-   * Request#primordial() primordial()} method returns {@code true}.</p>
-   *
-   * @param r a {@link Request}; may be {@code null} in which case {@code true} will be returned
-   *
-   * @return {@code true} if and only if the supplied {@link Request} is deemed to be primordial
-   */
-  protected boolean primordial(final Request<?> r) {
-    return r == null || r.primordial();
-  }
-
-  /**
    * Returns {@code true} if and only if the supplied {@link Id} is <dfn>proxiable</dfn>.
    *
    * @param id an {@link Id}; must not be {@code null}
@@ -222,7 +229,8 @@ public class ScopedInstances implements Instances {
    *
    * @exception NullPointerException if {@code id} is {@code null}
    */
-  protected boolean proxiable(final Id id) {
+  @Override // Instances
+  public boolean proxiable(final Id id) {
     if (!id.types().proxiable()) {
       return false;
     }
@@ -231,27 +239,14 @@ public class ScopedInstances implements Instances {
   }
 
   @Override // Instances
-  public final boolean proxiable(final Request<?> r) {
-    return !this.primordial(r) && this.proxiable(r.beanReduction().bean().id());
-  }
-
-  @Override // Instances
-  public final <I> Supplier<? extends I> supplier(final Request<I> request) {
-    if (this.primordial(request)) {
-      // The supplied Request is a request for a Request, i.e. it's primordial, so return a Supplier that simply returns
-      // the request.
-      @SuppressWarnings("unchecked")
-      final I instance = (I)request;
-      return () -> instance;
-    }
-    final Bean<I> bean = request.beanReduction().bean();
-    final Factory<I> factory = bean.factory();
+  public final <I> Supplier<? extends I> supplier(final Bean<I> bean, final Creation<I> request) {
     final Id id = bean.id();
     final Attributes scopeId = this.findScopeId(id);
     // In this implementation, all Ids must have scopes.
     if (scopeId == null) {
       throw new IllegalStateException();
     }
+    final Factory<I> factory = bean.factory();
     if (factory instanceof Scopelet<?> && this.primordial(scopeId)) {
       // This is a request for, e.g., the Singleton Scopelet, which backs the primordial (notional) singleton scope.
       // Scopelets are always their own factories. The Scopelet implementing the primordial scope (normally Singleton)
@@ -264,7 +259,7 @@ public class ScopedInstances implements Instances {
       return factory::singleton;
     }
     final AttributedType t = AttributedType.of(this.scopeletType, findScopeId(scopeId), FOR_INSTANTIATION);
-    return () -> request.<Scopelet<?>>reference(t).instance(id, factory, request); // assumes a specific kind of reduction; see #reducible
+    return () -> request.<Scopelet<?>>references(t).get().instance(id, factory, request); // assumes a specific kind of reduction; see #reducible
   }
 
 
