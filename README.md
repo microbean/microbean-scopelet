@@ -27,7 +27,7 @@ dependency:
   <groupId>org.microbean</groupId>
   <artifactId>microbean-scopelet</artifactId>
   <!-- Always check https://search.maven.org/artifact/org.microbean/microbean-scopelet for up-to-date available versions. -->
-  <version>0.0.9</version>
+  <version>0.0.11</version>
 </dependency>
 ```
 
