@@ -156,6 +156,8 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
 
     if (creationLock == newLock) {
 
+      // The creation lock is our new lock, which means there wasn't a pre-existing creation lock. Create.
+
       try {
         // (The finally block will unlock creationLock/newLock.)
 
@@ -186,18 +188,19 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
       }
     }
 
-    // There was a Lock in the creationLocks map already that was not the newLock we just created. That's either another
-    // thread performing creation (an OK situation) or we have re-entered this method on the current thread and have
-    // encountered a newLock ancestor (probably not such a great situation). In any event, "our" newLock was never
-    // inserted into the map. It will therefore be unlocked (it was never locked in the first place). Discard it in
-    // preparation for switching locks to creationLock instead.
+    // The creationLock was not our newLock. That means there was a Lock in the creationLocks map already that was not
+    // the newLock we just created. That's either another thread performing creation (an OK situation) or we have
+    // re-entered this method on the current thread and have encountered a newLock ancestor (probably not such a great
+    // situation). In any event, "our" newLock was never inserted into the map. It will therefore be unlocked (it was
+    // never locked in the first place). Discard it in preparation for switching locks to creationLock instead.
     assert !newLock.isLocked() : "newLock was locked: " + newLock;
     assert !this.creationLocks.containsValue(newLock) :
       "Creation locks contained " + newLock + "; creationLock: " + creationLock;
     // Lock and unlock in rapid succession. Why?  lock() will block if another thread is currently creating, and will
-    // return immediately if it is not. This is kind of a cheap way of doing Object.wait().
+    // return immediately if it is not. This is kind of a cheap way of doing Object.wait(). (Probably could use a
+    // Condition or a Semaphore here too. This is simple.)
     try {
-      creationLock.lock(); // potentially blocks
+      creationLock.lock(); // potentially blocks if creationLock is locked by another thread
     } finally {
       creationLock.unlock();
     }
@@ -231,6 +234,14 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
       }
     }
     return false;
+  }
+
+  @Override // Scopelet<M>
+  public boolean removes() {
+    if (!this.active()) {
+      throw new InactiveScopeletException();
+    }
+    return true;
   }
 
 

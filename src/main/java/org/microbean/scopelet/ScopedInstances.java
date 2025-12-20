@@ -17,35 +17,37 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import javax.lang.model.type.TypeMirror;
+
+import org.microbean.assign.AttributedType;
+import org.microbean.assign.Selectable;
 
 import org.microbean.attributes.Attributed;
 import org.microbean.attributes.Attributes;
 import org.microbean.attributes.BooleanValue;
 
-import org.microbean.bean.AmbiguousReductionException;
-import org.microbean.bean.AttributedType;
+import org.microbean.bean.AmbiguousResolutionException;
 import org.microbean.bean.Bean;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
-import org.microbean.bean.RankedReducer;
-import org.microbean.bean.Reducer;
-import org.microbean.bean.Reducible;
-import org.microbean.bean.Selectable;
+import org.microbean.bean.Qualifiers;
+import org.microbean.bean.ReferencesSelector;
 
 import org.microbean.construct.Domain;
 
 import org.microbean.reference.Instances;
 
-import static org.microbean.assign.Qualifiers.anyQualifier;
-import static org.microbean.assign.Qualifiers.primordialQualifier;
-import static org.microbean.assign.Qualifiers.qualifier;
+import static java.util.Objects.requireNonNull;
 
 /**
  * An {@link Instances} implementation that is based on scopes.
@@ -64,14 +66,19 @@ public class ScopedInstances implements Instances {
    */
 
 
-  private static final Attributes FOR_INSTANTIATION = Attributes.of("ForInstantiation");
-
+  // Note: deliberately not a scope or qualifier
+  private static final Attributes CONSIDER_ACTIVENESS = Attributes.of("ConsiderActiveness");
+  
 
   /*
    * Instance fields.
    */
 
 
+  private final Qualifiers qualifiers;
+
+  private final Scopes scopes;
+  
   private final TypeMirror scopeletType;
 
 
@@ -85,10 +92,16 @@ public class ScopedInstances implements Instances {
    *
    * @param domain a {@link Domain}; must not be {@code null}
    *
-   * @exception NullPointerException if {@code domain} is {@code null}
+   * @param qualifiers a {@link Qualifiers}; must not be {@code null}
+   *
+   * @param scopes a {@link Scopes}; must not be {@code null}
+   *
+   * @exception NullPointerException if any argument is {@code null}
    */
-  public ScopedInstances(final Domain domain) {
+  public ScopedInstances(final Domain domain, final Qualifiers qualifiers, final Scopes scopes) {
     super();
+    this.qualifiers = requireNonNull(qualifiers, "qualifiers");
+    this.scopes = requireNonNull(scopes, "scopes");
     this.scopeletType = scopeletType(domain);
   }
 
@@ -97,128 +110,6 @@ public class ScopedInstances implements Instances {
    * Instance methods.
    */
 
-
-  /**
-   * Calls the {@link #findScopeId(Collection)} method with the result of an invocation of the {@link
-   * Attributes#attributes()} method on the supplied {@link Attributes} and returns the result.
-   *
-   * @param a an {@link Attributes}; normally itself a scope; must not be {@code null}
-   *
-   * @return the first {@link Attributes} found in the supplied {@link Attributes}' {@linkplain Attributes#attributes()
-   * attributes} that is a scope, or {@code null}
-   *
-   * @exception NullPointerException if {@code a} is {@code null}
-   *
-   * @see #findScopeId(Collection)
-   */
-  private final Attributes findScopeId(final Attributes a) {
-    return this.findScopeId(a.attributes());
-  }
-
-  private final Attributes findScopeId(final Id id) {
-    // Looks for an Any qualifier, which every bean must possess, and then looks on *it* for the scope. This allows us
-    // to "tunnel" scopes (which are Qualifiers in this implementation) without disrupting typesafe resolution, since
-    // meta-attributes are not part of an Attributes' equality computation.
-    final Object anyQualifier = anyQualifier();
-    Attributes scopeId = null;
-    for (final Attributes a : id.attributes()) {
-      if (a.equals(anyQualifier)) {
-        scopeId = this.findScopeId(a);
-        break;
-      }
-    }
-    if (scopeId == null) {
-      throw new IllegalArgumentException("id: " + id);
-    }
-    return scopeId;
-  }
-
-  /**
-   * Finds and returns the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
-   * Attributes}.
-   *
-   * @param c a {@link Collection} of {@link Attributes}; must not be {@code null}
-   *
-   * @return the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
-   * Attributes}, or {@code null}
-   *
-   * @exception NullPointerException if {@code c} is {@code null}
-   */
-  protected Attributes findScopeId(final Collection<? extends Attributes> c) {
-    if (c.isEmpty()) {
-      return null;
-    }
-    // Breadth first on purpose. Scope Attributes closer to the Attributes they attribute win over Scope Attributes
-    // further away.
-    final Queue<Attributes> q = new ArrayDeque<>(c);
-    while (!q.isEmpty()) {
-      final Attributes a = q.poll();
-      if (this.isScopeId(a)) {
-        return a;
-      }
-      q.addAll(a.attributes());
-    }
-    return null;
-  }
-
-  /**
-   * Returns {@code true} if and only if the supplied {@link Attributes} is deemed to be an identifier of a
-   * <dfn>scope</dfn>.
-   *
-   * @param a an {@link Attributes}; must not be {@code null}
-   *
-   * @return {@code true} if and only if the supplied {@link Attributes} is deemed to be an identifier of a scope
-   *
-   * @exception NullPointerException if {@code a} is {@code null}
-   */
-  protected boolean isScopeId(final Attributes a) {
-    boolean scopeFound = false;
-    boolean qualifierFound = false;
-    for (final Attributes a0 : a.attributes()) {
-      if (scopeFound) {
-        if (!qualifierFound && a0.equals(qualifier())) {
-          return true;
-        }
-      } else if (qualifierFound) {
-        if (a0.equals(Scopelet.SCOPE)) {
-          return true;
-        }
-      } else if (a0.equals(Scopelet.SCOPE)) {
-        scopeFound = true;
-      } else if (a0.equals(qualifier())) {
-        qualifierFound = true;
-      }
-    }
-    return false;
-  }
-
-  private final boolean normal(final Attributes a) {
-    final BooleanValue v = a.value("normal");
-    return v != null && v.value();
-  }
-
-  private final boolean primordial(final Attributed a) {
-    return this.primordial(a.attributes());
-  }
-
-  /**
-   * Returns {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
-   * something as <dfn>primordial</dfn>.
-   *
-   * <p>The default implementation of this method returns {@code true} if and only if the supplied {@link Collection}
-   * {@linkplain Collection#contains(Object) contains} the {@linkplain
-   * org.microbean.assign.Qualifiers#primordialQualifier() primordial qualifier}.</p>
-   *
-   * @param c a {@link Collection}; must not be {@code null}
-   *
-   * @return {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
-   * something as <dfn>primordial</dfn>
-   *
-   * @exception NullPointerException if {@code c} is {@code null}
-   */
-  protected boolean primordial(final Collection<? extends Attributes> c) {
-    return c.contains(primordialQualifier());
-  }
 
   /**
    * Returns {@code true} if and only if the supplied {@link Id} is <dfn>proxiable</dfn>.
@@ -234,14 +125,14 @@ public class ScopedInstances implements Instances {
     if (!id.types().proxiable()) {
       return false;
     }
-    final Attributes scopeId = this.findScopeId(id);
-    return scopeId != null && this.normal(scopeId);
+    final Attributes scopeId = this.findScope(id);
+    return scopeId != null && this.scopes.normal(scopeId);
   }
 
   @Override // Instances
   public final <I> Supplier<? extends I> supplier(final Bean<I> bean, final Creation<I> request) {
     final Id id = bean.id();
-    final Attributes scopeId = this.findScopeId(id);
+    final Attributes scopeId = this.findScope(id);
     // In this implementation, all Ids must have scopes.
     if (scopeId == null) {
       throw new IllegalStateException();
@@ -251,15 +142,102 @@ public class ScopedInstances implements Instances {
       // This is a request for, e.g., the Singleton Scopelet, which backs the primordial (notional) singleton scope.
       // Scopelets are always their own factories. The Scopelet implementing the primordial scope (normally Singleton)
       // is not made or stored by any other Scopelet.
-      final I scopelet = factory.singleton();
+      I scopelet = factory.singleton();
       if (scopelet == null) {
         return () -> factory.create(request);
       }
       assert scopelet == factory : "scopelet != factory: " + scopelet + " != " + factory;
       return factory::singleton;
     }
-    final AttributedType t = AttributedType.of(this.scopeletType, findScopeId(scopeId), FOR_INSTANTIATION);
-    return () -> request.<Scopelet<?>>references(t).get().instance(id, factory, request); // assumes a specific kind of reduction; see #reducible
+    final AttributedType st = this.scopeletAttributedType(scopeId);
+    // Get the Scopelet and have it provide the instance
+    return () -> request.<Scopelet<?>>reference(st).instance(id, factory, request); // assumes Scopelet inactivity is handled
+  }
+
+  /*
+   * Returns {@code true} if and only if the supplied {@link Attributes} is deemed to be an identifier of a
+   * <dfn>scope</dfn>.
+   *
+   * @param a an {@link Attributes}; must not be {@code null}
+   *
+   * @return {@code true} if and only if the supplied {@link Attributes} is deemed to be an identifier of a scope
+   *
+   * @exception NullPointerException if {@code a} is {@code null}
+   *
+   * @see Scopes#scope(Attributes)
+   *
+   * @deprecated Use {@link Scopes#scope(Attributes)} instead.
+   */
+  // @Deprecated(forRemoval = true)
+  // protected boolean isScopeId(final Attributes a) {
+  //   return this.scopes.scope(a);
+  // }
+
+  /**
+   * Returns {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
+   * something as <dfn>primordial</dfn>.
+   *
+   * <p>The default implementation of this method returns {@code true} if and only if the supplied {@link Collection}
+   * {@linkplain Collection#contains(Object) contains} the {@linkplain
+   * org.microbean.bean.Qualifiers#primordialQualifier() primordial qualifier}.</p>
+   *
+   * @param c a {@link Collection}; must not be {@code null}
+   *
+   * @return {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
+   * something as <dfn>primordial</dfn>
+   *
+   * @exception NullPointerException if {@code c} is {@code null}
+   *
+   * @see Qualifiers#primordialQualifier()
+   */
+  protected boolean primordial(final Collection<? extends Attributes> c) {
+    return c.contains(this.qualifiers.primordialQualifier());
+  }
+
+  /**
+   * Finds and returns the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
+   * Attributes}.
+   *
+   * @param c a {@link Collection} of {@link Attributes}; must not be {@code null}
+   *
+   * @return the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
+   * Attributes}, or {@code null}
+   *
+   * @exception NullPointerException if {@code c} is {@code null}
+   *
+   * @see Scopes#findScope(Collection)
+   *
+   * @deprecated Please use {@link Scopes#findScope(Collection)} instead.
+   */
+  @Deprecated(forRemoval = true)
+  final Attributes findScopeId(final Collection<? extends Attributes> c) {
+    return this.scopes.findScope(c);
+  }
+
+  private final Attributes findScope(final Id id) {
+    // Looks for an Any qualifier, which every bean must possess, and then looks on *it* for the scope. This allows us
+    // to "tunnel" scopes (which are Qualifiers in this implementation) without disrupting typesafe resolution, since
+    // meta-attributes are not part of an Attributes' equality computation.
+    final Object anyQualifier = this.qualifiers.anyQualifier();
+    Attributes scopeId = null;
+    for (final Attributes a : id.attributes()) {
+      if (a.equals(anyQualifier)) {
+        scopeId = this.scopes.findScope(a.attributes());
+        break;
+      }
+    }
+    if (scopeId == null) {
+      throw new IllegalArgumentException("id: " + id);
+    }
+    return scopeId;
+  }
+
+  private final boolean primordial(final Attributed a) {
+    return this.primordial(a.attributes());
+  }
+
+  private final AttributedType scopeletAttributedType(final Attributes scopeId) {
+    return AttributedType.of(this.scopeletType, scopeId, CONSIDER_ACTIVENESS);
   }
 
 
@@ -268,14 +246,56 @@ public class ScopedInstances implements Instances {
    */
 
 
+  /**
+   * Returns a {@link Selectable Selectable&lt;AttributedType, Bean&lt;?&gt;&gt;} that properly considers the fact that
+   * a {@link Scopelet} may be {@linkplain Scopelet#active() active or inactive} at any point for any reason.
+   *
+   * @param domain a {@link Domain}; must not be {@code null}
+   *
+   * @param selectable a {@link Selectable} that will be used for all {@link AttributedType}s other than {@link
+   * Scopelet} types being sought for the purpose of instantiating or acquiring contextual instances; must not be {@code
+   * null}
+   *
+   * @return a non-{@code null} {@link Selectable}
+   *
+   * @exception  NullPointerException if any argument is {@code null}
+   */
+  public static final Selectable<AttributedType, Bean<?>> selectableOf(final Domain domain,
+                                                                       final Selectable<AttributedType, Bean<?>> selectable) {
+    Objects.requireNonNull(selectable, "selectable");
+    final Selectable<AttributedType, Bean<?>> scopeletSelectable = c -> {
+      Bean<?> activeScopeletBean = null;
+      for (final Bean<?> b : selectable.select(c)) {
+        if (((Scopelet<?>)b.factory()).active()) {
+          if (activeScopeletBean == null) {
+            activeScopeletBean = b;
+          } else {
+            throw new TooManyActiveScopeletsException("scopelet1: " + activeScopeletBean + "; scopelet2: " + b);
+          }
+        }
+      }
+      return activeScopeletBean == null ? List.of() : List.of(activeScopeletBean);
+    };
+    final TypeMirror scopeletType = scopeletType(domain);
+    return c ->
+      domain.sameType(scopeletType, c.type()) && c.attributes().contains(CONSIDER_ACTIVENESS) ?
+      // A ScopedInstances is requesting a Scopelet for the purposes of instantiating something else. Use the
+      // scopeletSelectable.
+      scopeletSelectable.select(c) :
+      // A ScopedInstances is requesting something "normal". Use the unadorned supplied Selectable.
+      selectable.select(c);
+  }
+
   // Invoked by method reference only
-  static final Bean<?> handleInactiveScopelets(final Collection<? extends Bean<?>> beans, final AttributedType attributedType) {
+  // (Actually, not used?)
+  @Deprecated(forRemoval = true)
+  private static final Bean<?> handleInactiveScopelets(final Collection<? extends Bean<?>> beans, final AttributedType attributedType) {
     if (beans.size() < 2) { // 2 because we're disambiguating
       throw new IllegalArgumentException("beans: " + beans);
     }
     Bean<?> b2 = null;
     Scopelet<?> s2 = null;
-    final Iterator<? extends Bean<?>> i = beans.iterator(); // we use Iterator for good reasons
+    final Iterator<? extends Bean<?>> i = beans.iterator();
     while (i.hasNext()) {
       final Bean<?> b1 = i.next();
       if (b1.factory() instanceof Scopelet<?> s1) {
@@ -297,26 +317,20 @@ public class ScopedInstances implements Instances {
           }
         }
         assert b2 != null;
-        // if (s2.scopeId().equals(s1.scopeId())) { // TODO: would like to make this go away
-          if (s2.active()) {
-            if (s1.active()) {
-              throw new TooManyActiveScopeletsException("scopelet1: " + s1 + "; scopelet2: " + s2);
-            }
-            // drop s1; keep s2
-          } else if (s1.active()) {
-            // drop s2; keep s1
-            s2 = s1;
-            b2 = b1;
-          } else {
-            // both are inactive; drop 'em both and keep going
-            s2 = null;
-            b2 = null;
+        if (s2.active()) {
+          if (s1.active()) {
+            throw new TooManyActiveScopeletsException("scopelet1: " + s1 + "; scopelet2: " + s2);
           }
-        // } else {
-        //   s2 = null;
-        //   b2 = null;
-        //   break;
-        // }
+          // drop s1; keep s2
+        } else if (s1.active()) {
+          // drop s2; keep s1
+          s2 = s1;
+          b2 = b1;
+        } else {
+          // both are inactive; drop 'em both and keep going
+          s2 = null;
+          b2 = null;
+        }
       } else {
         s2 = null;
         b2 = null;
@@ -324,96 +338,16 @@ public class ScopedInstances implements Instances {
       }
     }
     if (s2 == null) {
-      throw new AmbiguousReductionException(attributedType,
-                                            beans,
-                                            "TODO: this message needs to be better; can't resolve these alternates: " + beans);
+      throw new AmbiguousResolutionException(attributedType,
+                                             beans,
+                                             "TODO: this message needs to be better; can't resolve these alternates: " + beans);
     }
     assert b2 != null;
     return b2;
   }
 
-  static final TypeMirror scopeletType(final Domain domain) {
+  private static final TypeMirror scopeletType(final Domain domain) {
     return domain.declaredType(null, domain.typeElement(Scopelet.class.getCanonicalName()), domain.wildcardType());
-  }
-
-  /**
-   * Returns a {@link Reducible} suitable for use with {@link Scopelet}s.
-   *
-   * @param domain a {@link Domain} (that is normally shared among other cooperating components); must not be {@code null}
-   *
-   * @param selectable a {@link Selectable}; must not be {@code null}
-   *
-   * @return a non-{@code null} {@link Reducible}
-   *
-   * @exception NullPointerException if any argument is {@code null}
-   *
-   * @see #reducible(Domain, Selectable, Reducer)
-   *
-   * @see RankedReducer#of()
-   */
-  public static final Reducible<AttributedType, Bean<?>> reducible(final Domain domain,
-                                                                   final Selectable<AttributedType, Bean<?>> selectable) {
-    return reducible(domain, selectable, RankedReducer.of());
-  }
-
-  /**
-   * Returns a {@link Reducible} suitable for use with {@link Scopelet}s.
-   *
-   * @param domain a {@link Domain} (that is normally shared among other cooperating components); must not be {@code null}
-   *
-   * @param selectable a {@link Selectable}; must not be {@code null}
-   *
-   * @param reducer a {@link Reducer}; must not be {@code null}
-   *
-   * @return a non-{@code null} {@link Reducible}
-   *
-   * @exception NullPointerException if any argument is {@code null}
-   *
-   * @see #reducible(Domain, Selectable, Reducer, BiFunction)
-   *
-   * @see Reducer#fail(List, Object)
-   */
-  public static final Reducible<AttributedType, Bean<?>> reducible(final Domain domain,
-                                                                   final Selectable<AttributedType, Bean<?>> selectable,
-                                                                   final Reducer<AttributedType, Bean<?>> reducer) {
-    return reducible(domain, selectable, reducer, Reducer::fail);
-  }
-
-  /**
-   * Returns a {@link Reducible} suitable for use with {@link Scopelet}s.
-   *
-   * @param domain a {@link Domain} (that is normally shared among other cooperating components); must not be {@code null}
-   *
-   * @param selectable a {@link Selectable}; must not be {@code null}
-   *
-   * @param reducer a {@link Reducer}; must not be {@code null}
-   *
-   * @param failureHandler a {@link BiFunction} serving as the supplied {@link Reducer}'s <dfn>failure handler</dfn>;
-   * must not be {@code null}
-   *
-   * @return a non-{@code null} {@link Reducible}
-   *
-   * @exception NullPointerException if any argument is {@code null}
-   */
-  public static final Reducible<AttributedType, Bean<?>>
-    reducible(final Domain domain,
-              final Selectable<AttributedType, Bean<?>> selectable,
-              final Reducer<AttributedType, Bean<?>> reducer,
-              final BiFunction<? super List<? extends Bean<?>>, ? super AttributedType, ? extends Bean<?>> failureHandler) {
-    // Normal reductions are cached.
-    final Reducible<AttributedType, Bean<?>> cachingReducible = Reducible.ofCaching(selectable, reducer, failureHandler);
-    // Reductions of scopelets can't be cached because a Scopelet may be active or inactive at any point for any reason.
-    final Reducible<AttributedType, Bean<?>> scopeletReducible =
-      Reducible.<AttributedType, Bean<?>>of(selectable, reducer, ScopedInstances::handleInactiveScopelets);
-    final TypeMirror scopeletType = scopeletType(domain);
-    return c ->
-      (domain.sameType(scopeletType, c.type()) && c.attributes().contains(FOR_INSTANTIATION) ?
-       // A ScopedInstances is requesting a Scopelet for the purposes of instantiating something else. Use the
-       // scopeletReducible.
-       scopeletReducible :
-       // A ScopedInstances is requesting something "normal". Use the cachingReducible.
-       cachingReducible)
-      .reduce(c);
   }
 
 }

@@ -35,7 +35,7 @@ import static java.lang.invoke.MethodHandles.lookup;
  *
  * @see Destruction
  */
-public final class Instance<I> implements AutoCloseable, Supplier<I> {
+final class Instance<I> implements AutoCloseable, Supplier<I> {
 
 
   /*
@@ -83,9 +83,9 @@ public final class Instance<I> implements AutoCloseable, Supplier<I> {
    *
    * @param destruction a {@link Destruction}; may be {@code null}
    */
-  public Instance(final I contextualInstance,
-                  final Destructor<I> destructor,
-                  final Destruction destruction) {
+  Instance(final I contextualInstance,
+           final Destructor<I> destructor,
+           final Destruction destruction) {
     super();
     this.destruction = destruction;
     this.object = contextualInstance;

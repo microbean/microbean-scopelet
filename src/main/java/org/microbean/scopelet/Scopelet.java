@@ -19,18 +19,24 @@ import java.lang.invoke.VarHandle;
 import java.util.List;
 import java.util.Map;
 
+import org.microbean.assign.AttributedType;
+import org.microbean.assign.Qualifiers;
+
 import org.microbean.attributes.Attributes;
 import org.microbean.attributes.BooleanValue;
 import org.microbean.attributes.Value;
 
 import org.microbean.bean.Bean;
 import org.microbean.bean.Creation;
+import org.microbean.bean.Destruction;
 import org.microbean.bean.Factory;
+import org.microbean.bean.ReferencesSelector;
+
+import org.microbean.construct.Domain;
+
+import org.microbean.event.Events;
 
 import static java.lang.invoke.MethodHandles.lookup;
-
-import static org.microbean.assign.Qualifiers.primordialQualifier;
-import static org.microbean.assign.Qualifiers.qualifier;
 
 /**
  * A manager of object lifespans on behalf of one or more notional <dfn>scopes</dfn>.
@@ -62,38 +68,6 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
       throw new ExceptionInInitializerError(e);
     }
   }
-
-  /**
-   * An {@link Attributes} identifying the <dfn>scope designator</dfn>.
-   */
-  public static final Attributes SCOPE = Attributes.of("Scope");
-
-  private static final Map<String, Value<?>> normalScope = Map.of("normal", BooleanValue.of(true));
-
-  private static final Map<String, Value<?>> pseudoScope = Map.of("normal", BooleanValue.of(false));
-
-  /**
-   * An {@link Attributes} identifying the (well-known) <dfn>singleton pseudo-scope</dfn>.
-   *
-   * <p>The {@link Attributes} constituting the singleton pseudo-scope identifier is {@linkplain Attributes#attributes()
-   * attributed} with {@linkplain #SCOPE the scope designator}, {@linkplain org.microbean.assign.Qualifiers#qualifier()
-   * the qualifier designator}, and {@linkplain org.microbean.assign.Qualifiers#primordialQualifier() the primordial
-   * qualifier}, indicating that the scope it identifies governs itself.</p>
-   */
-  public static final Attributes SINGLETON_ID =
-    Attributes.of("Singleton", pseudoScope, Map.of(), Map.of("Singleton", List.of(qualifier(), SCOPE, primordialQualifier())));
-
-  /**
-   * An {@link Attributes} identifying the (well-known and <dfn>normal</dfn>) <dfn>application scope</dfn>.
-   */
-  public static final Attributes APPLICATION_ID =
-    Attributes.of("Application", normalScope, Map.of(), Map.of("Application", List.of(qualifier(), SCOPE, SINGLETON_ID)));
-
-  /**
-   * An {@link Attributes} identifying the (well-known) <dfn>none pseudo-scope</dfn>.
-   */
-  public static final Attributes NONE_ID =
-    Attributes.of("None", pseudoScope, Map.of(), Map.of("None", List.of(qualifier(), SCOPE, SINGLETON_ID)));
 
 
   /*
@@ -127,17 +101,85 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
   /**
    * Creates this {@link Scopelet} by simply returning it.
    *
+   * @param c a {@link Creation}; <strong>may be {@code null}</strong> in certain primordial cases
+   *
    * @return this {@link Scopelet}
    */
   @Override // Factory<S>
   @SuppressWarnings("unchecked")
-  public final S create(final Creation<S> r) {
+  public final S create(final Creation<S> c) {
+    if (this.closed()) {
+      throw new IllegalStateException("closed");
+    }
     if (ME.compareAndSet(this, null, this)) { // volatile write
-      if (r != null) {
-        // TODO: emit initialized event
+      if (c != null) {
+        this.fireScopeletInitialized(c);
       }
     }
     return (S)this;
+  }
+
+  @Override
+  public final void destroy(final S me, final Destruction creation) {
+    if (this.closed()) {
+      throw new IllegalStateException("closed");
+    }
+    if (creation == null) {
+      Factory.super.destroy(me, creation);
+      this.me = null; // volatile write
+      return;
+    } else if (!(creation instanceof Creation<?>)) {
+      throw new IllegalArgumentException("creation: " + creation);
+    }
+    final Creation<S> c = (Creation<S>)creation;
+    this.fireScopeletDestroying(c);
+    Factory.super.destroy(me, creation);
+    this.me = null; // volatile write
+    this.fireScopeletDestroyed(c);
+  }
+
+  /**
+   * Informs any interested observers that this {@link Scopelet} is about to be destroyed.
+   *
+   * @param r a {@link ReferencesSelector}; must not be {@code null}
+   *
+   * @exception NullPointerException if {@code r} is {@code null}
+   */
+  protected void fireScopeletDestroying(final ReferencesSelector r) {
+
+  }
+
+  /**
+   * Informs any interested observers that this {@link Scopelet} has been irrevocably destroyed.
+   *
+   * @param r a {@link ReferencesSelector}; must not be {@code null}
+   *
+   * @exception NullPointerException if {@code r} is {@code null}
+   */
+  protected void fireScopeletDestroyed(final ReferencesSelector r) {
+
+  }
+
+  /**
+   * Informs any interested observers that this {@link Scopelet} has just been initialized.
+   *
+   * @param r a {@link ReferencesSelector}; must not be {@code null}
+   *
+   * @exception NullPointerException if {@code r} is {@code null}
+   */
+  // The specification says scopes should fire an event when they're open for business but there are lots of weird
+  // ramifications to this. We break this out into a protected method so overrides can do what they want, or nothing at
+  // all.
+  protected void fireScopeletInitialized(final ReferencesSelector r) {
+    // final Domain d = r.domain();
+    // final Events e = r.reference(new AttributedType(d.declaredType(d.typeElement(Events.class.getCanonicalName())),
+    //                                                 defaultQualifiers()));
+    // if (e != null) {
+    //   e.fire(null, // typeArgumentSource; not needed here; maybe could do wild S reflective introspection
+    //          List.of(), // qualifiers/attributes; TODO: @Initialized
+    //          this, // event object; can be anything
+    //          c);
+    // }
   }
 
   /**
@@ -150,6 +192,9 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    */
   @Override // Factory<S>
   public final S singleton() {
+    if (this.closed()) {
+      throw new IllegalStateException("closed");
+    }
     return this.me; // volatile read
   }
 
@@ -206,10 +251,14 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    *
    * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
    *
-   * @exception ClassCastException if {@code creation} is non-{@code null} and does not implement {@link
-   * org.microbean.bean.Destruction}, a requirement of its contract
+   * @exception ClassCastException if destruction is called for, {@code creation} is non-{@code null}, and {@code
+   * creation} does not implement {@link org.microbean.bean.Destruction}, a requirement of its contract
    *
    * @see Creation
+   *
+   * @see org.microbean.bean.Destruction
+   *
+   * @see Factory#destroys()
    */
   public abstract <I> I instance(final Object id, final Factory<I> factory, final Creation<I> creation);
 
@@ -227,6 +276,27 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
    */
   public boolean remove(final Object id) {
+    if (!this.active()) {
+      throw new InactiveScopeletException();
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if and only if this {@link Scopelet} stores contextual instances, and hence is capable of
+   * {@linkplain #remove(Object) removing} them.
+   *
+   * <p><strong>The default implementation of this method returns {@code false}.</strong> Subclasses are encouraged to
+   * override it as appropriate.</p>
+   *
+   * @return {@code true} if and only if this {@link Scopelet} stores contextual instances, and hence is capable of
+   * {@linkplain #remove(Object) removing} them
+   *
+   * @exception InactiveScopeletException if this {@link Scopelet} is not {@linkplain #active() active}
+   *
+   * @see #remove(Object)
+   */
+  public boolean removes() {
     if (!this.active()) {
       throw new InactiveScopeletException();
     }

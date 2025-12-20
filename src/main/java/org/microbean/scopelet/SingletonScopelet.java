@@ -17,11 +17,12 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.Constable;
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.DynamicConstantDesc;
-import java.lang.constant.MethodHandleDesc;
 
 import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
+
+import static java.lang.constant.MethodHandleDesc.ofConstructor;
 
 /**
  * A {@link MapBackedScopelet} implementation that caches singletons.
@@ -39,9 +40,7 @@ public class SingletonScopelet extends MapBackedScopelet<SingletonScopelet> impl
 
   @Override // Constable
   public Optional<? extends ConstantDesc> describeConstable() {
-    return
-      Optional.of(DynamicConstantDesc.of(BSM_INVOKE,
-                                         MethodHandleDesc.ofConstructor(ClassDesc.of(this.getClass().getName()))));
+    return Optional.of(DynamicConstantDesc.of(BSM_INVOKE, ofConstructor(ClassDesc.of(this.getClass().getName()))));
   }
 
 }
