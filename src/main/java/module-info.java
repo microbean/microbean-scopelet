@@ -26,6 +26,7 @@ module org.microbean.scopelet {
   requires transitive org.microbean.bean;
   requires            org.microbean.constant;
   requires            org.microbean.construct;
+  requires            org.microbean.event;
   requires transitive org.microbean.reference;
 
 }
