@@ -1,1 +1,1 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"m":"org.microbean.scopelet","l":"org.microbean.scopelet"}];updateSearchResults();
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html","k":"18"},{"m":"org.microbean.scopelet","l":"org.microbean.scopelet"}];updateSearchResults();
