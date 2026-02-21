@@ -1,6 +1,6 @@
 /* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
  *
- * Copyright © 2023–2025 microBean™.
+ * Copyright © 2023–2026 microBean™.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
@@ -84,8 +84,8 @@ final class Instance<I> implements AutoCloseable, Supplier<I> {
    * @param destruction a {@link Destruction}; may be {@code null}
    */
   Instance(final I contextualInstance,
-           final Destructor<I> destructor,
-           final Destruction destruction) {
+            final Destructor<I> destructor,
+            final Destruction destruction) {
     super();
     this.destruction = destruction;
     this.object = contextualInstance;

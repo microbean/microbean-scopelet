@@ -1,6 +1,6 @@
 /* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
  *
- * Copyright © 2025 microBean™.
+ * Copyright © 2025–2026 microBean™.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,28 +26,35 @@ import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
+import javax.lang.model.AnnotatedConstruct;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+
 import javax.lang.model.type.TypeMirror;
 
-import org.microbean.assign.AttributedType;
+import org.microbean.assign.Annotated;
 import org.microbean.assign.Selectable;
-
-import org.microbean.attributes.Attributed;
-import org.microbean.attributes.Attributes;
-import org.microbean.attributes.BooleanValue;
 
 import org.microbean.bean.AmbiguousResolutionException;
 import org.microbean.bean.Bean;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Factory;
 import org.microbean.bean.Id;
-import org.microbean.bean.Qualifiers;
 import org.microbean.bean.ReferencesSelector;
 
 import org.microbean.construct.Domain;
 
+import org.microbean.construct.element.SyntheticAnnotationMirror;
+import org.microbean.construct.element.SyntheticAnnotationTypeElement;
+
+import org.microbean.construct.type.UniversalType;
+
 import org.microbean.reference.Instances;
 
 import static java.util.Objects.requireNonNull;
+
+import static org.microbean.construct.element.AnnotationMirrors.sameAnnotation;
 
 /**
  * An {@link Instances} implementation that is based on scopes.
@@ -62,24 +69,22 @@ public class ScopedInstances implements Instances {
 
 
   /*
-   * Static fields.
-   */
-
-
-  // Note: deliberately not a scope or qualifier
-  private static final Attributes CONSIDER_ACTIVENESS = Attributes.of("ConsiderActiveness");
-  
-
-  /*
    * Instance fields.
    */
 
+  
+  private final Domain domain;
+  
+  private final org.microbean.bean.Qualifiers bq;
 
-  private final Qualifiers qualifiers;
+  private final Qualifiers sq;
 
   private final Scopes scopes;
   
   private final TypeMirror scopeletType;
+
+  // Deliberately not a scope or a qualifier
+  private final AnnotationMirror considerActiveness;
 
 
   /*
@@ -90,19 +95,35 @@ public class ScopedInstances implements Instances {
   /**
    * Creates a new {@link ScopedInstances}.
    *
-   * @param domain a {@link Domain}; must not be {@code null}
+   * @param domain a non-{@code null} {@link Domain}
    *
-   * @param qualifiers a {@link Qualifiers}; must not be {@code null}
+   * @param bq a non-{@code null} {@link org.microbean.bean.Qualifiers}
    *
-   * @param scopes a {@link Scopes}; must not be {@code null}
+   * @param sq a non-{@code null} {@link Qualifiers}
+   *
+   * @param scopes a non-{@code null} {@link Scopes}
+   *
+   * @param considerActiveness an {@link AnnotationMirror} used to signal that <dfn>activeness</dfn> should be taken
+   * into consideration during typesafe resolution; may be {@code null}
    *
    * @exception NullPointerException if any argument is {@code null}
    */
-  public ScopedInstances(final Domain domain, final Qualifiers qualifiers, final Scopes scopes) {
+  public ScopedInstances(final Domain domain,
+                         final org.microbean.bean.Qualifiers bq,
+                         final Qualifiers sq,
+                         final Scopes scopes,
+                         final AnnotationMirror considerActiveness) {
     super();
-    this.qualifiers = requireNonNull(qualifiers, "qualifiers");
+    this.domain = domain;
+    this.scopeletType =
+      domain.declaredType(null, domain.typeElement(Scopelet.class.getCanonicalName()), domain.wildcardType());
     this.scopes = requireNonNull(scopes, "scopes");
-    this.scopeletType = scopeletType(domain);
+    this.bq = bq;
+    this.sq = requireNonNull(sq, "sq");
+    this.considerActiveness =
+      considerActiveness == null ?
+      new SyntheticAnnotationMirror(new SyntheticAnnotationTypeElement("ConsiderActiveness")) :
+      considerActiveness;
   }
 
 
@@ -122,18 +143,58 @@ public class ScopedInstances implements Instances {
    */
   @Override // Instances
   public boolean proxiable(final Id id) {
-    if (!id.types().proxiable()) {
-      return false;
+    return id.types().proxiable() && this.findNormalScope(id) != null;
+  }
+
+  /**
+   * Returns a {@link Selectable Selectable&lt;AnnotatedConstruct, Bean&lt;?&gt;&gt;} that properly considers the fact
+   * that a {@link Scopelet} may be {@linkplain Scopelet#active() active or inactive} at any point for any reason.
+   *
+   * @param selectable a {@link Selectable} that will be used for all {@link AnnotatedConstruct}s other than {@link
+   * Scopelet} types being sought for the purpose of instantiating or acquiring contextual instances; must not be
+   * {@code null}
+   *
+   * @return a non-{@code null} {@link Selectable}
+   *
+   * @exception  NullPointerException if any argument is {@code null}
+   */
+  public final Selectable<Annotated<? extends AnnotatedConstruct>, Bean<?>> selectableOf(final Selectable<? super Annotated<? extends AnnotatedConstruct>, Bean<?>> selectable) {
+    requireNonNull(selectable, "selectable");
+    final Selectable<Annotated<? extends AnnotatedConstruct>, Bean<?>> scopeletSelectable = aac -> {
+      Bean<?> activeScopeletBean = null;
+      for (final Bean<?> b : selectable.select(aac)) {
+        if (((Scopelet<?>)b.factory()).active()) {
+          if (activeScopeletBean == null) {
+            activeScopeletBean = b;
+          } else {
+            throw new TooManyActiveScopeletsException("scopelet1: " + activeScopeletBean + "; scopelet: " + b);
+          }
+        }
+      }
+      return activeScopeletBean == null ? List.of() : List.of(activeScopeletBean);
+    };
+    return aac ->
+      this.domain.sameType(this.scopeletType, type(aac)) && this.considerActiveness(aac.annotations()) ?
+      // A ScopedInstances is requesting a Scopelet for the purposes of instantiating something else. Use the
+      // scopeletSelectable.
+      scopeletSelectable.select(aac) :
+      // A ScopedInstances is requesting something "normal". Use the unadorned supplied Selectable.
+      selectable.select(aac);
+  }
+
+  private static final TypeMirror type(final Annotated<? extends AnnotatedConstruct> a) {
+    final AnnotatedConstruct ac = a.annotated();
+    if (ac instanceof TypeMirror t) {
+      return t;
     }
-    final Attributes scopeId = this.findScope(id);
-    return scopeId != null && this.scopes.normal(scopeId);
+    return ((Element)ac).asType();
   }
 
   @Override // Instances
   public final <I> Supplier<? extends I> supplier(final Bean<I> bean, final Creation<I> request) {
     final Id id = bean.id();
-    final Attributes scopeId = this.findScope(id);
-    // In this implementation, all Ids must have scopes.
+    final AnnotationMirror scopeId = this.findScope(id);
+    // In this implementation, all ids must have scopes.
     if (scopeId == null) {
       throw new IllegalStateException();
     }
@@ -149,80 +210,64 @@ public class ScopedInstances implements Instances {
       assert scopelet == factory : "scopelet != factory: " + scopelet + " != " + factory;
       return factory::singleton;
     }
-    final AttributedType st = this.scopeletAttributedType(scopeId);
+    final Annotated<TypeMirror> ast = this.annotatedScopeletType(scopeId);
     // Get the Scopelet and have it provide the instance
-    return () -> request.<Scopelet<?>>reference(st).instance(id, factory, request); // assumes Scopelet inactivity is handled
+    return () -> {
+      return request.<Scopelet<?>>reference(ast)
+        .instance(id, factory, request); // assumes Scopelet inactivity is handled
+    };
   }
 
-  /*
-   * Returns {@code true} if and only if the supplied {@link Attributes} is deemed to be an identifier of a
-   * <dfn>scope</dfn>.
-   *
-   * @param a an {@link Attributes}; must not be {@code null}
-   *
-   * @return {@code true} if and only if the supplied {@link Attributes} is deemed to be an identifier of a scope
-   *
-   * @exception NullPointerException if {@code a} is {@code null}
-   *
-   * @see Scopes#scope(Attributes)
-   *
-   * @deprecated Use {@link Scopes#scope(Attributes)} instead.
-   */
-  // @Deprecated(forRemoval = true)
-  // protected boolean isScopeId(final Attributes a) {
-  //   return this.scopes.scope(a);
-  // }
-
   /**
-   * Returns {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
-   * something as <dfn>primordial</dfn>.
+   * Returns {@code true} if and only if the supplied {@link Collection} of {@link AnnotationMirror}s is deemed to
+   * designate something as <dfn>primordial</dfn>.
    *
    * <p>The default implementation of this method returns {@code true} if and only if the supplied {@link Collection}
-   * {@linkplain Collection#contains(Object) contains} the {@linkplain
-   * org.microbean.bean.Qualifiers#primordialQualifier() primordial qualifier}.</p>
+   * contains an {@link AnnotationMirror} that is the {@linkplain
+   * org.microbean.construct.element.AnnotationMirrors#sameAnnotation(AnnotationMirror, AnnotationMirror) same
+   * annotation} as the {@link org.microbean.bean.Qualifiers#primordialQualifier() primordial qualifier}.</p>
    *
-   * @param c a {@link Collection}; must not be {@code null}
+   * @param c a {@link Collection} of {@link AnnotationMirror}s; must not be {@code null}
    *
-   * @return {@code true} if and only if the supplied {@link Collection} of {@link Attributes} is deemed to designate
-   * something as <dfn>primordial</dfn>
+   * @return {@code true} if and only if the supplied {@link Collection} of {@link AnnotationMirror}s is deemed to
+   * designate something as <dfn>primordial</dfn>
    *
    * @exception NullPointerException if {@code c} is {@code null}
    *
    * @see Qualifiers#primordialQualifier()
    */
-  protected boolean primordial(final Collection<? extends Attributes> c) {
-    return c.contains(this.qualifiers.primordialQualifier());
+  private final boolean primordial(final Collection<? extends AnnotationMirror> c) {
+    for (final AnnotationMirror a : c) {
+      if (this.sq.primordialMetaQualifier(a)) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  /**
-   * Finds and returns the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
-   * Attributes}.
-   *
-   * @param c a {@link Collection} of {@link Attributes}; must not be {@code null}
-   *
-   * @return the <dfn>nearest</dfn> scope identifier in the forest represented by the supplied {@link
-   * Attributes}, or {@code null}
-   *
-   * @exception NullPointerException if {@code c} is {@code null}
-   *
-   * @see Scopes#findScope(Collection)
-   *
-   * @deprecated Please use {@link Scopes#findScope(Collection)} instead.
-   */
-  @Deprecated(forRemoval = true)
-  final Attributes findScopeId(final Collection<? extends Attributes> c) {
-    return this.scopes.findScope(c);
+  private final boolean primordial(final AnnotationMirror a) {
+    return this.primordial(a.getAnnotationType().asElement().getAnnotationMirrors());
   }
 
-  private final Attributes findScope(final Id id) {
+  private final AnnotationMirror findNormalScope(final Id id) {
+    AnnotationMirror scopeId = null;
+    for (final AnnotationMirror a : id.annotations()) {
+      if (this.bq.anyQualifier(a)) {
+        scopeId = this.scopes.findNormalScope(a.getAnnotationType().asElement().getAnnotationMirrors());
+        break;
+      }
+    }
+    return scopeId;
+  }
+  
+  private final AnnotationMirror findScope(final Id id) {
     // Looks for an Any qualifier, which every bean must possess, and then looks on *it* for the scope. This allows us
     // to "tunnel" scopes (which are Qualifiers in this implementation) without disrupting typesafe resolution, since
-    // meta-attributes are not part of an Attributes' equality computation.
-    final Object anyQualifier = this.qualifiers.anyQualifier();
-    Attributes scopeId = null;
-    for (final Attributes a : id.attributes()) {
-      if (a.equals(anyQualifier)) {
-        scopeId = this.scopes.findScope(a.attributes());
+    // meta-annotations are not part of an AnnotationMirror's equality computation.
+    AnnotationMirror scopeId = null;
+    for (final AnnotationMirror a : id.annotations()) {
+      if (this.bq.anyQualifier(a)) {
+        scopeId = this.scopes.findScope(a.getAnnotationType().asElement().getAnnotationMirrors());
         break;
       }
     }
@@ -232,122 +277,19 @@ public class ScopedInstances implements Instances {
     return scopeId;
   }
 
-  private final boolean primordial(final Attributed a) {
-    return this.primordial(a.attributes());
+  private final Annotated<TypeMirror> annotatedScopeletType(final AnnotationMirror scopeId) {
+    return Annotated.of(new UniversalType(List.of(scopeId, this.considerActiveness),
+                                          this.scopeletType,
+                                          this.domain));
   }
 
-  private final AttributedType scopeletAttributedType(final Attributes scopeId) {
-    return AttributedType.of(this.scopeletType, scopeId, CONSIDER_ACTIVENESS);
-  }
-
-
-  /*
-   * Static methods.
-   */
-
-
-  /**
-   * Returns a {@link Selectable Selectable&lt;AttributedType, Bean&lt;?&gt;&gt;} that properly considers the fact that
-   * a {@link Scopelet} may be {@linkplain Scopelet#active() active or inactive} at any point for any reason.
-   *
-   * @param domain a {@link Domain}; must not be {@code null}
-   *
-   * @param selectable a {@link Selectable} that will be used for all {@link AttributedType}s other than {@link
-   * Scopelet} types being sought for the purpose of instantiating or acquiring contextual instances; must not be {@code
-   * null}
-   *
-   * @return a non-{@code null} {@link Selectable}
-   *
-   * @exception  NullPointerException if any argument is {@code null}
-   */
-  public static final Selectable<AttributedType, Bean<?>> selectableOf(final Domain domain,
-                                                                       final Selectable<AttributedType, Bean<?>> selectable) {
-    Objects.requireNonNull(selectable, "selectable");
-    final Selectable<AttributedType, Bean<?>> scopeletSelectable = c -> {
-      Bean<?> activeScopeletBean = null;
-      for (final Bean<?> b : selectable.select(c)) {
-        if (((Scopelet<?>)b.factory()).active()) {
-          if (activeScopeletBean == null) {
-            activeScopeletBean = b;
-          } else {
-            throw new TooManyActiveScopeletsException("scopelet1: " + activeScopeletBean + "; scopelet2: " + b);
-          }
-        }
-      }
-      return activeScopeletBean == null ? List.of() : List.of(activeScopeletBean);
-    };
-    final TypeMirror scopeletType = scopeletType(domain);
-    return c ->
-      domain.sameType(scopeletType, c.type()) && c.attributes().contains(CONSIDER_ACTIVENESS) ?
-      // A ScopedInstances is requesting a Scopelet for the purposes of instantiating something else. Use the
-      // scopeletSelectable.
-      scopeletSelectable.select(c) :
-      // A ScopedInstances is requesting something "normal". Use the unadorned supplied Selectable.
-      selectable.select(c);
-  }
-
-  // Invoked by method reference only
-  // (Actually, not used?)
-  @Deprecated(forRemoval = true)
-  private static final Bean<?> handleInactiveScopelets(final Collection<? extends Bean<?>> beans, final AttributedType attributedType) {
-    if (beans.size() < 2) { // 2 because we're disambiguating
-      throw new IllegalArgumentException("beans: " + beans);
-    }
-    Bean<?> b2 = null;
-    Scopelet<?> s2 = null;
-    final Iterator<? extends Bean<?>> i = beans.iterator();
-    while (i.hasNext()) {
-      final Bean<?> b1 = i.next();
-      if (b1.factory() instanceof Scopelet<?> s1) {
-        if (s2 == null) {
-          assert b2 == null;
-          if (i.hasNext()) {
-            b2 = i.next();
-            if (b2.factory() instanceof Scopelet<?> s) {
-              s2 = s;
-            } else {
-              s2 = null;
-              b2 = null;
-              break;
-            }
-          } else {
-            s2 = s1;
-            b2 = b1;
-            break;
-          }
-        }
-        assert b2 != null;
-        if (s2.active()) {
-          if (s1.active()) {
-            throw new TooManyActiveScopeletsException("scopelet1: " + s1 + "; scopelet2: " + s2);
-          }
-          // drop s1; keep s2
-        } else if (s1.active()) {
-          // drop s2; keep s1
-          s2 = s1;
-          b2 = b1;
-        } else {
-          // both are inactive; drop 'em both and keep going
-          s2 = null;
-          b2 = null;
-        }
-      } else {
-        s2 = null;
-        b2 = null;
-        break;
+  private final boolean considerActiveness(final Collection<? extends AnnotationMirror> c) {
+    for (final AnnotationMirror a : c) {
+      if (sameAnnotation(this.considerActiveness, a)) {
+        return true;
       }
     }
-    if (s2 == null) {
-      throw new AmbiguousResolutionException(attributedType,
-                                             beans,
-                                             "TODO: this message needs to be better; can't resolve these alternates: " + beans);
-    }
-    assert b2 != null;
-    return b2;
-  }
-
-  private static final TypeMirror scopeletType(final Domain domain) {
-    return domain.declaredType(null, domain.typeElement(Scopelet.class.getCanonicalName()), domain.wildcardType());
+    return false;
   }
 
 }

@@ -1,6 +1,6 @@
 /* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
  *
- * Copyright © 2023–2025 microBean™.
+ * Copyright © 2023–2026 microBean™.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,22 +19,10 @@ import java.lang.invoke.VarHandle;
 import java.util.List;
 import java.util.Map;
 
-import org.microbean.assign.AttributedType;
-import org.microbean.assign.Qualifiers;
-
-import org.microbean.attributes.Attributes;
-import org.microbean.attributes.BooleanValue;
-import org.microbean.attributes.Value;
-
-import org.microbean.bean.Bean;
 import org.microbean.bean.Creation;
 import org.microbean.bean.Destruction;
 import org.microbean.bean.Factory;
 import org.microbean.bean.ReferencesSelector;
-
-import org.microbean.construct.Domain;
-
-import org.microbean.event.Events;
 
 import static java.lang.invoke.MethodHandles.lookup;
 
@@ -200,11 +188,11 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
 
   /**
    * Returns {@code true} when invoked to indicate that {@link Scopelet} implementations {@linkplain
-   * Factory#destroy(Object, org.microbean.bean.Destruction) destroy} what they {@linkplain #create(Creation) create}.
+   * Factory#destroy(Object, Destruction) destroy} what they {@linkplain #create(Creation) create}.
    *
    * @return {@code true} when invoked
    *
-   * @see Factory#destroy(Object, org.microbean.bean.Destruction)
+   * @see Factory#destroy(Object, Destruction)
    *
    * @see #create(Creation)
    */
@@ -252,11 +240,11 @@ public abstract class Scopelet<S extends Scopelet<S>> implements AutoCloseable, 
    * @exception InactiveScopeletException if this {@link Scopelet} {@linkplain #active() is not active}
    *
    * @exception ClassCastException if destruction is called for, {@code creation} is non-{@code null}, and {@code
-   * creation} does not implement {@link org.microbean.bean.Destruction}, a requirement of its contract
+   * creation} does not implement {@link Destruction}, a requirement of its contract
    *
    * @see Creation
    *
-   * @see org.microbean.bean.Destruction
+   * @see Destruction
    *
    * @see Factory#destroys()
    */
