@@ -1,6 +1,6 @@
 /* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
  *
- * Copyright © 2023–2025 microBean™.
+ * Copyright © 2023–2026 microBean™.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -168,8 +168,8 @@ public abstract class MapBackedScopelet<M extends MapBackedScopelet<M>> extends 
         @SuppressWarnings("unchecked")
         final Instance<I> newInstance =
           new Instance<I>(factory == this ? (I)this : factory.create(creation),
-                          factory::destroy, // Destructor
-                          (Destruction)creation);
+                           factory::destroy, // Destructor
+                           (Destruction)creation);
 
         // Put the created instance into our instance map. There will not be a pre-existing instance.
         final Object previous = this.instances.put(id, newInstance);
